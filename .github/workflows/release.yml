@@ -11,8 +11,50 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # ── Build WASM frontend once (platform-independent) ───────────────────
+  frontend:
+    name: Build frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: frontend
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dioxus-cli
+        run: cargo install dioxus-cli --version 0.6.3 --locked
+
+      - name: Build frontend
+        run: |
+          cd crates/frontend
+          npm ci
+          npm run build:css
+          dx build --platform web --package lsp-skill-frontend --bin lsp-skill-frontend --release
+          cd ../..
+          mkdir -p target/frontend-dist
+          cp -R target/dx/lsp-skill-frontend/release/web/public/. target/frontend-dist/
+          mkdir -p target/frontend-dist/assets
+          cp crates/frontend/assets/app.css target/frontend-dist/assets/app.css
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: target/frontend-dist
+
+  # ── Build platform binaries ───────────────────────────────────────────
   build:
     name: Build (${{ matrix.target }})
+    needs: frontend
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -39,33 +81,18 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }},wasm32-unknown-unknown
+          targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
 
-      # ── Node.js for frontend CSS build ───────────────────────────────────
-      - uses: actions/setup-node@v4
+      # ── Download pre-built frontend ─────────────────────────────────────
+      - name: Download frontend
+        uses: actions/download-artifact@v4
         with:
-          node-version: 20
-
-      # ── Build frontend ───────────────────────────────────────────────────
-      - name: Install dioxus-cli
-        run: cargo install dioxus-cli --version 0.6.3 --locked
-
-      - name: Build frontend
-        shell: bash
-        run: |
-          cd crates/frontend
-          npm ci
-          npm run build:css
-          dx build --platform web --package lsp-skill-frontend --bin lsp-skill-frontend --release
-          cd ../..
-          mkdir -p target/frontend-dist
-          cp -R target/dx/lsp-skill-frontend/release/web/public/. target/frontend-dist/
-          mkdir -p target/frontend-dist/assets
-          cp crates/frontend/assets/app.css target/frontend-dist/assets/app.css
+          name: frontend-dist
+          path: target/frontend-dist
 
       # ── Build binaries ───────────────────────────────────────────────────
       - name: Build server & CLI
@@ -82,7 +109,7 @@ jobs:
           cp dist/.env.example "$OUT/"
           cp dist/AGENTS-skills.md "$OUT/"
           cp dist/AGENTS-mcp.md "$OUT/"
-          cp -R dist/skill "$OUT/skill"
+          cp -R dist/skills "$OUT/skills"
           if [ -f dist/README.html ]; then cp dist/README.html "$OUT/"; fi
           if ls dist/pics/* &>/dev/null; then mkdir -p "$OUT/pics" && cp dist/pics/* "$OUT/pics/"; fi
           cd target/release-bundle
@@ -99,7 +126,7 @@ jobs:
           cp dist/.env.example "$OUT/"
           cp dist/AGENTS-skills.md "$OUT/"
           cp dist/AGENTS-mcp.md "$OUT/"
-          cp -R dist/skill "$OUT/skill"
+          cp -R dist/skills "$OUT/skills"
           if [ -f dist/README.html ]; then cp dist/README.html "$OUT/"; fi
           if ls dist/pics/* &>/dev/null; then mkdir -p "$OUT/pics" && cp dist/pics/* "$OUT/pics/"; fi
           cd target/release-bundle
