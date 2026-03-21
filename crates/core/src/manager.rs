@@ -1131,7 +1131,7 @@ async fn initialize_client(client: &LspClient, root_path: &str) -> AnyResult<()>
                             "dynamicRegistration": false
                         },
                         "didChangeWatchedFiles": {
-                            "dynamicRegistration": true
+                            "dynamicRegistration": false
                         }
                     }
                 }
