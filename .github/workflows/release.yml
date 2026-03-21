@@ -145,10 +145,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -156,9 +152,19 @@ jobs:
 
       - name: Read tag annotation
         id: tag_notes
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          TAG_MESSAGE="$(git tag -l --format='%(contents)' "${GITHUB_REF_NAME}")"
+          REF_API="repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}"
+          REF_TYPE="$(gh api "$REF_API" --jq '.object.type')"
+
+          TAG_MESSAGE=""
+          if [ "$REF_TYPE" = "tag" ]; then
+            TAG_SHA="$(gh api "$REF_API" --jq '.object.sha')"
+            TAG_MESSAGE="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${TAG_SHA}" --jq '.message')"
+          fi
+
           {
             echo 'body<<EOF'
             printf '%s\n' "$TAG_MESSAGE"
