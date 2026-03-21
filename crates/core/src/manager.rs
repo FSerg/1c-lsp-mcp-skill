@@ -383,12 +383,9 @@ impl LspManager {
             }
 
             for line in lines {
-                let _ = append_project_log(
-                    self.paths.logs_dir.clone(),
-                    id.to_string(),
-                    line.clone(),
-                )
-                .await;
+                let _ =
+                    append_project_log(self.paths.logs_dir.clone(), id.to_string(), line.clone())
+                        .await;
                 let _ = self.event_tx.send(LspEvent::LogLine {
                     id: id.to_string(),
                     line,
@@ -549,8 +546,11 @@ impl LspManager {
     ) -> Result<Value, ServiceError> {
         let (_, uri, client) = self.ensure_file_opened(id, file_path).await?;
 
-        self.log(id, format!(">> references: {file_path} ({line}:{character})"))
-            .await;
+        self.log(
+            id,
+            format!(">> references: {file_path} ({line}:{character})"),
+        )
+        .await;
 
         let result = client
             .request(
@@ -585,8 +585,11 @@ impl LspManager {
     ) -> Result<Value, ServiceError> {
         let (_, uri, client) = self.ensure_file_opened(id, file_path).await?;
 
-        self.log(id, format!(">> definition: {file_path} ({line}:{character})"))
-            .await;
+        self.log(
+            id,
+            format!(">> definition: {file_path} ({line}:{character})"),
+        )
+        .await;
 
         let result = client
             .request(
@@ -611,11 +614,7 @@ impl LspManager {
         result
     }
 
-    pub async fn workspace_symbols(
-        &self,
-        id: &str,
-        query: &str,
-    ) -> Result<Value, ServiceError> {
+    pub async fn workspace_symbols(&self, id: &str, query: &str) -> Result<Value, ServiceError> {
         let project = self.project_handle(id).await?;
         let client = {
             let state = project.read().await;
@@ -626,9 +625,7 @@ impl LspManager {
                 )));
             }
             state.client.clone().ok_or_else(|| {
-                ServiceError::ProjectNotReady(
-                    "У проекта нет активного LSP-клиента.".to_string(),
-                )
+                ServiceError::ProjectNotReady("У проекта нет активного LSP-клиента.".to_string())
             })?
         };
 
@@ -636,10 +633,7 @@ impl LspManager {
             .await;
 
         let result = client
-            .request(
-                "workspace/symbol",
-                json!({ "query": query }),
-            )
+            .request("workspace/symbol", json!({ "query": query }))
             .await
             .map_err(|err| ServiceError::Internal(err.to_string()));
 
@@ -746,7 +740,9 @@ impl LspManager {
                 {
                     let mut state = project.write().await;
                     state.diagnostics.remove(&uri);
-                    state.opened_files.insert(file_path.to_string(), new_version);
+                    state
+                        .opened_files
+                        .insert(file_path.to_string(), new_version);
                 }
                 client
                     .notify(
@@ -989,9 +985,7 @@ fn project_notification_handler(
                             && (end_message.contains("Наполнение контекста завершено")
                                 || end_message.contains("Context populated"));
 
-                        if is_context_ready
-                            && matches!(state.status, ProjectStatus::WarmingUp)
-                        {
+                        if is_context_ready && matches!(state.status, ProjectStatus::WarmingUp) {
                             state.status = ProjectStatus::Ready;
                             let _ = event_tx.send(LspEvent::ProjectStatusChanged {
                                 id: project_id,
@@ -1024,8 +1018,7 @@ fn project_stderr_handler(
                 line: line.clone(),
             });
 
-            if line.contains("Наполнение контекста завершено")
-                || line.contains("Context populated")
+            if line.contains("Наполнение контекста завершено") || line.contains("Context populated")
             {
                 let mut state = project.write().await;
                 if matches!(state.status, ProjectStatus::WarmingUp) {
@@ -1265,9 +1258,7 @@ fn validate_bsl_config(config: &str) -> Result<(), ServiceError> {
         return Ok(()); // default will be used at start
     }
     let parsed: Value = serde_json::from_str(config.trim()).map_err(|err| {
-        ServiceError::InvalidRequest(format!(
-            "Конфигурация BSL содержит невалидный JSON: {err}"
-        ))
+        ServiceError::InvalidRequest(format!("Конфигурация BSL содержит невалидный JSON: {err}"))
     })?;
     let trigger = parsed
         .get("diagnostics")

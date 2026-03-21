@@ -71,7 +71,10 @@ pub fn router(manager: Arc<LspManager>, kind: McpKind) -> Router {
     };
 
     Router::new()
-        .route("/mcp", post(handle_post).get(handle_get).delete(handle_delete))
+        .route(
+            "/mcp",
+            post(handle_post).get(handle_get).delete(handle_delete),
+        )
         .with_state(state)
 }
 
@@ -105,8 +108,7 @@ static DIAGNOSTICS_TOOLS: &[ToolDef] = &[ToolDef {
 static FILE_PATH_DESC: &str = "Путь к .bsl файлу относительно корня проекта (project_root_path). \
     Не используйте абсолютные пути. Сохраняйте кириллицу в именах каталогов. \
     Пример: 1c-src/Configuration/CommonModules/ОбщийМодуль1/Module.bsl";
-static LINE_DESC: &str =
-    "Номер строки в файле (zero-based, начиная с 0). Первая строка файла = 0";
+static LINE_DESC: &str = "Номер строки в файле (zero-based, начиная с 0). Первая строка файла = 0";
 static CHARACTER_DESC: &str =
     "Позиция символа в строке (zero-based, начиная с 0). Первый символ строки = 0. \
      Проверяйте точность — ошибка на ±1 приводит к пустому или неверному результату";
@@ -239,11 +241,7 @@ async fn handle_post(
         "tools/call" => {
             handle_tools_call(&state.manager, state.tools, id, request.params, project_id).await
         }
-        other => JsonRpcResponse::error(
-            id,
-            METHOD_NOT_FOUND,
-            format!("Method not found: {other}"),
-        ),
+        other => JsonRpcResponse::error(id, METHOD_NOT_FOUND, format!("Method not found: {other}")),
     };
 
     Json(response).into_response()
@@ -261,11 +259,7 @@ async fn handle_delete() -> StatusCode {
 
 // ── MCP method implementations ───────────────────────────────────────────────
 
-fn handle_initialize(
-    server_name: &str,
-    server_instructions: &str,
-    id: Value,
-) -> JsonRpcResponse {
+fn handle_initialize(server_name: &str, server_instructions: &str, id: Value) -> JsonRpcResponse {
     JsonRpcResponse::success(
         id,
         json!({
@@ -313,10 +307,7 @@ async fn handle_tools_call(
     };
 
     let params = params.unwrap_or(Value::Null);
-    let tool_name = params
-        .get("name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let tool_name = params.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let arguments = params.get("arguments").cloned().unwrap_or(Value::Null);
 
     // Check tool exists in this server

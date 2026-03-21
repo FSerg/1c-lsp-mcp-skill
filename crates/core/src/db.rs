@@ -58,11 +58,9 @@ impl Database {
         .await;
 
         // Migration: add bsl_config column
-        let _ = sqlx::query(
-            "ALTER TABLE projects ADD COLUMN bsl_config TEXT NOT NULL DEFAULT ''",
-        )
-        .execute(&pool)
-        .await;
+        let _ = sqlx::query("ALTER TABLE projects ADD COLUMN bsl_config TEXT NOT NULL DEFAULT ''")
+            .execute(&pool)
+            .await;
 
         Ok(Self { pool })
     }

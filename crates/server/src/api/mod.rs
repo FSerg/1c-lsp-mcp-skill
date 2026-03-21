@@ -38,7 +38,10 @@ pub fn router() -> Router<ServerState> {
         .route("/projects/{id}/symbols", post(project_symbols))
         .route("/projects/{id}/references", post(project_references))
         .route("/projects/{id}/definition", post(project_definition))
-        .route("/projects/{id}/workspace-symbols", post(project_workspace_symbols))
+        .route(
+            "/projects/{id}/workspace-symbols",
+            post(project_workspace_symbols),
+        )
         .route("/events", get(events))
 }
 
@@ -433,10 +436,7 @@ async fn project_workspace_symbols(
     Json(payload): Json<WorkspaceSymbolsRequest>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     Ok(Json(
-        state
-            .manager
-            .workspace_symbols(&id, &payload.query)
-            .await?,
+        state.manager.workspace_symbols(&id, &payload.query).await?,
     ))
 }
 
