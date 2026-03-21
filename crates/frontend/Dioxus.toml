@@ -1,0 +1,8 @@
+[application]
+name = "lsp-skill-frontend"
+asset_dir = "assets"
+out_dir = "../../target/frontend-dist"
+
+[web.app]
+title = "1C LSP Skill"
+base_path = "/"

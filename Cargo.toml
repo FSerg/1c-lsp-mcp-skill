@@ -1,0 +1,52 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/server",
+    "crates/frontend",
+    "crates/cli",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "LGPL-3.0-only"
+
+[workspace.dependencies]
+anyhow = "1"
+axum = { version = "0.8", features = ["macros"] }
+chrono = { version = "0.4", features = ["clock", "serde"] }
+clap = { version = "4", features = ["derive"] }
+directories = "6"
+dioxus = { version = "0.6", features = ["web"] }
+futures-util = "0.3"
+include_dir = "0.7"
+mime_guess = "2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+shlex = "1"
+sqlx = { version = "0.8", features = ["chrono", "macros", "runtime-tokio-rustls", "sqlite", "uuid"] }
+sysinfo = "0.37"
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tokio-util = "0.7"
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+url = "2"
+uuid = { version = "1", features = ["serde", "v4"] }
+
+[profile]
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>1с-lsp-mcp-skill — Quick Start</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 860px; margin: 2rem auto; padding: 0 1.5rem; line-height: 1.7; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+  h2 { margin-top: 2rem; color: #1e3a5f; }
+  h3 { margin-top: 1.5rem; }
+  code { background: #f3f4f6; padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
+  pre { background: #f3f4f6; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  img { max-width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; margin: 0.5rem 0 1rem; }
+  ul, ol { padding-left: 1.5rem; }
+  li { margin-bottom: 0.4rem; }
+  .note { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>1с-lsp-mcp-skill</h1>
+
+<p>Кросcплатформенное приложение &mdash; менеджер запуска и MCP-bridge для нескольких инстансов
+<a href="https://github.com/1c-syntax/bsl-language-server">bsl-language-server</a> под разные 1С-проекты.</p>
+
+<p>Поддерживается работа как через MCP, так и через SKILLs.
+Не требуется Docker или каких-то зависимостей, кроме JVM для запуска самого bsl-language-server.</p>
+
+<p>Проект состоит из:</p>
+<ul>
+  <li><code>lsp-skill-server</code> &mdash; консольный HTTP сервер с web UI для управления</li>
+  <li><code>lsp-skill</code> &mdash; CLI для запросов к уже созданному проекту</li>
+</ul>
+
+<h2>Что умеет</h2>
+<ul>
+  <li>Запускать несколько инстансов <code>bsl-language-server</code> (свой на каждый 1С-проект) с прогрессом индексации</li>
+  <li>Проверка синтаксиса: <code>diagnostics</code> через MCP или SKILLs CLI</li>
+  <li>Навигация по кодовой базе: <code>symbols</code>, <code>references</code>, <code>definition</code>, <code>workspace-symbols</code> через MCP или SKILLs CLI</li>
+  <li>Каждый инстанс можно запускать со своими JVM-ключами (для больших проектов нужно выделять больше RAM)</li>
+  <li>Каждый инстанс можно запускать со своим <a href="https://1c-syntax.github.io/bsl-language-server/features/ConfigurationFile/">конфигурационным файлом</a></li>
+  <li>Работа как служба в фоне (опционально)</li>
+</ul>
+
+<p><img src="pics/Pic01.png" alt="Проекты"></p>
+<p><img src="pics/Pic02.png" alt="Настройки"></p>
+<p><img src="pics/Pic03.png" alt="Навигация по коду"></p>
+<p><img src="pics/Pic04.png" alt="Проверка синтаксиса"></p>
+
+<h2>Комплект поставки</h2>
+<ul>
+  <li>Два бинарника <code>lsp-skill-server</code> и <code>lsp-skill</code></li>
+  <li>Два скила: <code>1c-check</code> (проверка синтаксиса) и <code>1c-lsp</code> (навигация по коду)</li>
+  <li>Примеры файлов <code>AGENTS.md</code> для усиления уверенности вызовов MCP или SKILLs LLM-агентами</li>
+  <li>Пример <code>.env.example</code> для настройки CLI</li>
+</ul>
+
+<h2>Быстрый старт</h2>
+
+<h3>1. Подготовка окружения</h3>
+<ul>
+  <li>Устанавливаем JVM. На Windows это можно одной командой:
+    <pre><code>winget install Microsoft.OpenJDK.25</code></pre>
+    или
+    <pre><code>choco install openjdk</code></pre>
+  </li>
+  <li>Скачиваем последний <a href="https://github.com/1c-syntax/bsl-language-server/releases">релиз bsl-language-server</a> (проверялось на v0.28.5)</li>
+</ul>
+
+<h3>2. Запуск приложения</h3>
+<ul>
+  <li>Запускаем серверную часть <code>lsp-skill-server</code>, web-интерфейс будет доступен по адресу
+    <a href="http://127.0.0.1:4000">http://127.0.0.1:4000</a>
+    (позже можно установить приложение как службу)</li>
+  <li>Прописываем в PATH папку с CLI-утилитой, если хотим работать через SKILLs:
+    <pre><code>lsp-skill install-path</code></pre>
+  </li>
+</ul>
+
+<h3>3. Настройка</h3>
+<ul>
+  <li>Указываем расположение файла <code>bsl-language-server-*-exec.jar</code></li>
+  <li>Включаем MCP, если необходимо (и перезапускаем сервер, если меняли эту настройку)</li>
+  <li>Добавляем проекты, указывая:
+    <ul>
+      <li><strong>Корневой путь проекта</strong> &mdash; рабочая директория, из которой работает агент</li>
+      <li><strong>Путь к выгрузке 1С</strong> &mdash; папка с исходниками для bsl-language-server</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>4. Работа</h3>
+<ol>
+  <li>Нажимаем &laquo;Запустить&raquo; у выбранного проекта. Это запустит индексацию папок с выгрузками 1С.
+    На типовых УТ/БП/УНФ это несколько минут.</li>
+  <li>В папке конкретного 1С-проекта настраиваем работу в одном из двух вариантов:</li>
+</ol>
+
+<h4>Вариант 1: через SKILLs</h4>
+<p>В корне проекта создаём файл <code>.env</code>:</p>
+<pre><code>PROJECT_ID=55535b0f-886f-4dff-ad12-22377f9a5213</code></pre>
+<p>Скилы размещаем в <code>.claude/skills/</code> или <code>.agents/skills/</code></p>
+
+<h4>Вариант 2: через MCP</h4>
+<p>Настраиваем <code>mcp.json</code> (формат может отличаться у разных IDE):</p>
+<pre><code>{
+  "servers": {
+    "1c-lsp-diagnostics": {
+      "headers": {
+        "x-project-id": "fe9da3c9-5ce2-47cb-808c-acc6bb4b7b91"
+      },
+      "type": "http",
+      "url": "http://127.0.0.1:9011/mcp"
+    },
+    "1c-lsp-navigation": {
+      "headers": {
+        "x-project-id": "fe9da3c9-5ce2-47cb-808c-acc6bb4b7b91"
+      },
+      "type": "http",
+      "url": "http://127.0.0.1:9012/mcp"
+    }
+  },
+  "inputs": []
+}</code></pre>
+<p>где <code>x-project-id</code> &mdash; это ID проиндексированного проекта.</p>
+
+<div class="note">
+  Всё, теперь LLM-агент может почти мгновенно делать проверку синтаксиса и навигацию по коду.
+</div>
+
+<h3>Опции</h3>
+<p>Приложение можно установить как службу, чтобы не запускать вручную каждый раз:</p>
+<pre><code>lsp-skill-server service install    # установка службы
+lsp-skill-server service uninstall  # удаление службы
+lsp-skill-server service status     # статус службы</code></pre>
+
+<h2>Лицензия</h2>
+<p>Проект распространяется под лицензией <code>LGPL-3.0</code>.</p>
+
+</body>
+</html>

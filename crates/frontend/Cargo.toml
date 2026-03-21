@@ -1,0 +1,19 @@
+[package]
+name = "lsp-skill-frontend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "lsp-skill-frontend"
+path = "src/main.rs"
+
+[dependencies]
+dioxus.workspace = true
+gloo-net = { version = "0.6", features = ["http"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["EventSource", "MessageEvent", "EventTarget"] }

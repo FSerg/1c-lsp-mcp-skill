@@ -1,0 +1,30 @@
+/target
+**/*.rs.bk
+*.pdb
+
+# Dependencies
+/crates/server/node_modules
+/crates/frontend/node_modules
+/.tools
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# BSL Language Server (local binary, not in repo)
+/bsl-language-server/
+
+# Other
+docs/
+.claude/
+.env
+
+# 1C test project (local test data)
+/park/
+/unf-demo/
