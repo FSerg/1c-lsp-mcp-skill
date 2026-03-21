@@ -13,6 +13,7 @@
 
 - Запускать несколько инстансов `bsl-language-server` (свой на каждый 1С-проект) c прогрессом индексации (наполнения контекста)
 - Проверка синтаксиса: `diagnostics` через MCP или SKILLs CLI
+- Передавать `bsl-language-server` изменения в кодовой базе 1С-проекта (эффективная push-модель)
 - Навигация по кодовой базе: `symbols`, `references`, `definition`, `workspace-symbols` через MCP или SKILLs CLI
 - Каждый инстанс `bsl-language-server` можно запускать со своими jvm ключами (для больших 1С-проектов нужно выделять больше RAM)
 - Каждый инстанс `bsl-language-server` можно запускать со своим [конфигурационным файлом](https://1c-syntax.github.io/bsl-language-server/features/ConfigurationFile/) (например, с разными исключениями для диагностик)
