@@ -22,11 +22,12 @@ use crate::models::{
     IndexingProgress, ProjectSnapshot, ProjectStatus, ProjectUpsert, StoredProject,
 };
 use crate::paths::AppPaths;
+use crate::watcher::ProjectWatcher;
 
-type SharedProject = Arc<RwLock<ProjectState>>;
+pub(crate) type SharedProject = Arc<RwLock<ProjectState>>;
 
-struct ProjectState {
-    config: StoredProject,
+pub(crate) struct ProjectState {
+    pub(crate) config: StoredProject,
     status: ProjectStatus,
     client: Option<LspClient>,
     child: Option<Arc<Mutex<Child>>>,
@@ -35,6 +36,7 @@ struct ProjectState {
     progress: IndexingProgress,
     /// Token of the main progress (the one that sends "report" events).
     progress_token: Option<String>,
+    watcher: Option<ProjectWatcher>,
 }
 
 impl ProjectState {
@@ -48,6 +50,7 @@ impl ProjectState {
             opened_files: HashMap::new(),
             progress: IndexingProgress::default(),
             progress_token: None,
+            watcher: None,
         }
     }
 
@@ -415,11 +418,30 @@ impl LspManager {
                 ServiceError::Internal("Не удалось инициализировать LSP-сервер.".to_string())
             })?;
 
+        let watcher = match crate::watcher::start_project_watcher(
+            &root_path,
+            client.clone(),
+            id.to_string(),
+            project.clone(),
+            self.paths.logs_dir.clone(),
+            self.event_tx.clone(),
+        ) {
+            Ok(w) => {
+                tracing::info!("File watcher started for project {id}");
+                Some(w)
+            }
+            Err(err) => {
+                tracing::warn!("File watcher failed to start for project {id}: {err}");
+                None
+            }
+        };
+
         let child = Arc::new(Mutex::new(child));
         {
             let mut state = project.write().await;
             state.client = Some(client);
             state.child = Some(child.clone());
+            state.watcher = watcher;
             state.status = ProjectStatus::WarmingUp;
         }
         self.emit_status(id, &project).await;
@@ -477,6 +499,7 @@ impl LspManager {
             state.status = ProjectStatus::Stopped;
             state.client = None;
             state.child = None;
+            state.watcher = None;
             state.diagnostics.clear();
             state.opened_files.clear();
             state.progress = IndexingProgress::default();
@@ -1106,6 +1129,9 @@ async fn initialize_client(client: &LspClient, root_path: &str) -> AnyResult<()>
                     "workspace": {
                         "symbol": {
                             "dynamicRegistration": false
+                        },
+                        "didChangeWatchedFiles": {
+                            "dynamicRegistration": true
                         }
                     }
                 }
@@ -1139,6 +1165,7 @@ async fn watch_project_process(
                 let mut state = project.write().await;
                 state.client = None;
                 state.child = None;
+                state.watcher = None;
                 state.opened_files.clear();
                 if state.status.is_stopped() {
                     None

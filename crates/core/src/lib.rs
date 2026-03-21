@@ -9,6 +9,7 @@ pub mod manager;
 pub mod models;
 pub mod paths;
 pub mod runtime;
+pub mod watcher;
 
 pub use config::AppConfig;
 pub use db::Database;
