@@ -39,13 +39,13 @@ lsp-skill diagnostics "1c-src/Configuration/CommonModules/ОбщийМодуль
 
 Use before edits, after edits, and when explaining an existing problem.
 
-Expect an LSP `publishDiagnostics` payload with:
+Expect a diagnostics payload with:
 
 - `uri`;
 - `diagnostics[]`;
 - per-diagnostic fields such as `range`, `severity`, `message`, `source`, `code`, `tags`, `relatedInformation`.
 
-The first request to a file opens it in the LSP session. This wrapper then waits for diagnostics to arrive. If nothing arrives within about 30 seconds, it returns an empty list with `_note`; treat that as "no diagnostics received in time", not as proof that the file is clean.
+The first request to a file opens it in the LSP session and then requests diagnostics through LSP pull diagnostics (`textDocument/diagnostic`). The response is returned immediately after the server answers.
 
 ## Use Recommended Workflows
 
@@ -60,12 +60,10 @@ The first request to a file opens it in the LSP session. This wrapper then waits
 1. Run `lsp-skill diagnostics <file>`.
 2. Group diagnostics by severity and range.
 3. Quote the exact `message`, `source`, `code`, and location when summarizing the issue.
-4. Treat an empty result with `_note` as inconclusive if the server may still be warming up.
-
 ## Apply Interpretation Rules
 
 - Treat diagnostics as tool output, not as full proof that the file is correct.
-- Treat missing diagnostics as ambiguous, not final. Common causes: indexing still in progress, wrong relative path, or no diagnostics received within the wait window.
+- Treat missing diagnostics as ambiguous, not final. Common causes: indexing still in progress, wrong relative path, or server-side analysis limitations.
 - Cite exact returned ranges and messages when summarizing findings.
 - Re-run diagnostics after edits instead of assuming the issue is resolved.
 

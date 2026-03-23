@@ -73,7 +73,6 @@ const DEFAULT_BSL_CONFIG: &str = r#"{
   "$schema": "https://1c-syntax.github.io/bsl-language-server/configuration/schema.json",
   "language": "ru",
   "diagnostics": {
-    "computeTrigger": "onType",
     "minimumLSPDiagnosticLevel": "Warning",
     "parameters": {
       "MethodSize": false

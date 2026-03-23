@@ -86,7 +86,7 @@ crates/
 - `POST /api/settings/check-java` — проверка Java 17+
 - `GET/POST/PUT/DELETE /api/projects` — CRUD проектов
 - `POST /api/projects/{id}/start|stop` — управление
-- `POST /api/projects/{id}/diagnostics|symbols|references|definition|workspace-symbols` — LSP-запросы
+- `POST /api/projects/{id}/diagnostics|symbols|references|definition|incoming-calls|outgoing-calls|workspace-symbols` — LSP-запросы
 - `GET /api/projects/{id}/logs` — логи проекта
 - `GET /api/events` — SSE стрим
 - `POST /api/browse` — файловый браузер
@@ -96,7 +96,7 @@ crates/
 Два отдельных MCP-сервера (Streamable HTTP, JSON-RPC 2.0 через `POST /mcp`), каждый на своём порту:
 
 - **1c-lsp-diagnostics** (порт `9011`) — инструмент `diagnostics`
-- **1c-lsp-navigation** (порт `9012`) — инструменты `symbols`, `definition`, `references`, `workspace_symbols`
+- **1c-lsp-navigation** (порт `9012`) — инструменты `symbols`, `definition`, `references`, `incoming_calls`, `outgoing_calls`, `workspace_symbols`
 
 Включаются через `config.toml` (`mcp_diagnostics_enabled`, `mcp_navigation_enabled`) или Web UI. Реализация: `crates/server/src/mcp/`.
 
@@ -120,7 +120,7 @@ crates/
 
 CLI находит `PROJECT_ID` из `.env` файла (поиск вверх по дереву каталогов), подключается к серверу через `runtime.json`.
 
-Команды: `status`, `diagnostics <file>`, `symbols <file>`, `references <file> --line N --col N`, `definition <file> --line N --col N`, `workspace-symbols <query>`, `install-path`
+Команды: `status`, `diagnostics <file>`, `symbols <file>`, `references <file> --line N --col N`, `definition <file> --line N --col N`, `incoming-calls <file> --line N --col N`, `outgoing-calls <file> --line N --col N`, `workspace-symbols <query>`, `install-path`
 
 ## Project Structure
 

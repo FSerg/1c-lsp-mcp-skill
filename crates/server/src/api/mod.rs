@@ -39,6 +39,14 @@ pub fn router() -> Router<ServerState> {
         .route("/projects/{id}/references", post(project_references))
         .route("/projects/{id}/definition", post(project_definition))
         .route(
+            "/projects/{id}/incoming-calls",
+            post(project_incoming_calls),
+        )
+        .route(
+            "/projects/{id}/outgoing-calls",
+            post(project_outgoing_calls),
+        )
+        .route(
             "/projects/{id}/workspace-symbols",
             post(project_workspace_symbols),
         )
@@ -110,13 +118,6 @@ struct LogsQuery {
 #[derive(Debug, Deserialize)]
 struct FileRequest {
     file_path: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct ReferencesRequest {
-    file_path: String,
-    line: u32,
-    character: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -407,7 +408,7 @@ async fn project_symbols(
 async fn project_references(
     State(state): State<ServerState>,
     Path(id): Path<String>,
-    Json(payload): Json<ReferencesRequest>,
+    Json(payload): Json<PositionRequest>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     Ok(Json(
         state
@@ -426,6 +427,32 @@ async fn project_definition(
         state
             .manager
             .definition(&id, &payload.file_path, payload.line, payload.character)
+            .await?,
+    ))
+}
+
+async fn project_incoming_calls(
+    State(state): State<ServerState>,
+    Path(id): Path<String>,
+    Json(payload): Json<PositionRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    Ok(Json(
+        state
+            .manager
+            .incoming_calls(&id, &payload.file_path, payload.line, payload.character)
+            .await?,
+    ))
+}
+
+async fn project_outgoing_calls(
+    State(state): State<ServerState>,
+    Path(id): Path<String>,
+    Json(payload): Json<PositionRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    Ok(Json(
+        state
+            .manager
+            .outgoing_calls(&id, &payload.file_path, payload.line, payload.character)
             .await?,
     ))
 }

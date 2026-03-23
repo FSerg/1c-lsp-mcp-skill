@@ -37,6 +37,24 @@ enum Commands {
         #[arg(long = "col")]
         character: u32,
     },
+    /// Входящие вызовы процедуры или функции
+    #[command(name = "incoming-calls")]
+    IncomingCalls {
+        file_path: String,
+        #[arg(long)]
+        line: u32,
+        #[arg(long = "col")]
+        character: u32,
+    },
+    /// Исходящие вызовы процедуры или функции
+    #[command(name = "outgoing-calls")]
+    OutgoingCalls {
+        file_path: String,
+        #[arg(long)]
+        line: u32,
+        #[arg(long = "col")]
+        character: u32,
+    },
     /// Поиск символов по всему проекту
     #[command(name = "workspace-symbols")]
     WorkspaceSymbols {
@@ -139,6 +157,44 @@ async fn run() -> Result<()> {
                     "{connect_url}/api/projects/{project_id}/workspace-symbols"
                 ))
                 .json(&serde_json::json!({ "query": query }))
+                .send()
+                .await
+                .map_err(|_| connection_error(&connect_url))?;
+            print_json_response(response).await?;
+        }
+        Commands::IncomingCalls {
+            file_path,
+            line,
+            character,
+        } => {
+            let response = client
+                .post(format!(
+                    "{connect_url}/api/projects/{project_id}/incoming-calls"
+                ))
+                .json(&serde_json::json!({
+                    "file_path": normalize_cli_file_path(&file_path),
+                    "line": line,
+                    "character": character
+                }))
+                .send()
+                .await
+                .map_err(|_| connection_error(&connect_url))?;
+            print_json_response(response).await?;
+        }
+        Commands::OutgoingCalls {
+            file_path,
+            line,
+            character,
+        } => {
+            let response = client
+                .post(format!(
+                    "{connect_url}/api/projects/{project_id}/outgoing-calls"
+                ))
+                .json(&serde_json::json!({
+                    "file_path": normalize_cli_file_path(&file_path),
+                    "line": line,
+                    "character": character
+                }))
                 .send()
                 .await
                 .map_err(|_| connection_error(&connect_url))?;

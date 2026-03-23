@@ -1,6 +1,6 @@
 ---
 name: 1c-lsp
-description: "Use when developing, reviewing, or debugging 1C:Enterprise 8.3 / BSL code in a repository connected to the local `lsp-skill` service and you need semantic navigation through `bsl-language-server`. Covers `symbols`, `definition`, `references`, and `workspace-symbols` for configured 1C projects. Prefer this skill over plain text search when you need symbol-aware answers about procedures, functions, variables, common modules, forms, object modules, and cross-file usage in 1C (`1С`) projects."
+description: "Use when developing, reviewing, or debugging 1C:Enterprise 8.3 / BSL code in a repository connected to the local `lsp-skill` service and you need semantic navigation through `bsl-language-server`. Covers `symbols`, `definition`, `references`, `incoming-calls`, `outgoing-calls`, and `workspace-symbols` for configured 1C projects. Prefer this skill over plain text search when you need symbol-aware answers about procedures, functions, variables, common modules, forms, object modules, and cross-file usage in 1C (`1С`) projects."
 ---
 
 # 1c-lsp
@@ -79,6 +79,36 @@ This wrapper sends `includeDeclaration: true`, so the declaration itself may app
 
 Do not use raw text search as a substitute when you need reliable call sites or variable usages.
 
+### `incoming-calls <file_path> --line N --col M`
+
+Use when you need to know who calls the procedure or function at the given position.
+
+This wrapper first sends `prepareCallHierarchy` and then requests `callHierarchy/incomingCalls`. It uses only the first prepared item. For BSL that is a reasonable assumption because function overloading is not used in the language model exposed by the server.
+
+Expect:
+
+- `IncomingCall[]`, or
+- `null`.
+
+Each item contains the calling symbol (`from`) and the source ranges (`fromRanges`) where the call happens.
+
+Use this before changing a public or widely reused procedure to assess upstream impact.
+
+### `outgoing-calls <file_path> --line N --col M`
+
+Use when you need to know what the current procedure or function calls.
+
+This wrapper first sends `prepareCallHierarchy` and then requests `callHierarchy/outgoingCalls`. It uses only the first prepared item.
+
+Expect:
+
+- `OutgoingCall[]`, or
+- `null`.
+
+Each item contains the called symbol (`to`) and the ranges (`fromRanges`) where the outgoing call occurs.
+
+Use this to understand dependencies inside an unfamiliar procedure before changing its behavior.
+
 ### `workspace-symbols <query>`
 
 Use when you know the symbol name or part of it, but not the file.
@@ -100,15 +130,17 @@ Do not assume strict regex semantics just because the local CLI help mentions re
 
 1. Run `lsp-skill symbols <file>`.
 2. Run `definition` on the key calls you do not recognize.
-3. Run `references` on the procedure or function you plan to change.
-4. Open the returned files and inspect real code before editing.
+3. Run `incoming-calls` and `outgoing-calls` on the main procedure or function you plan to change.
+4. Run `references` when you need the full usage list rather than only the call hierarchy.
+5. Open the returned files and inspect real code before editing.
 
 ### Estimate Change Impact
 
 1. Find the declaration with `definition` or `workspace-symbols`.
-2. Run `references`.
-3. Group usages by module and scenario.
-4. Only then describe the likely impact of the change.
+2. Run `incoming-calls` for direct callers and `references` for the broader usage list.
+3. Run `outgoing-calls` if internal dependencies also matter.
+4. Group usages by module and scenario.
+5. Only then describe the likely impact of the change.
 
 ## Apply Interpretation Rules
 
@@ -127,9 +159,11 @@ Do not assume strict regex semantics just because the local CLI help mentions re
 - `symbols`;
 - `references`;
 - `definition`;
+- `incoming-calls`;
+- `outgoing-calls`;
 - `workspace-symbols`.
 
-Do not claim this skill can perform diagnostics, rename, hover, completion, formatting, code actions, call hierarchy, or automatic refactoring unless those operations are added to the local wrapper or covered by another skill.
+Do not claim this skill can perform diagnostics, rename, hover, completion, formatting, code actions, or automatic refactoring unless those operations are added to the local wrapper or covered by another skill.
 
 ## Troubleshoot Carefully
 
@@ -149,5 +183,7 @@ lsp-skill status
 lsp-skill symbols "1c-src/Configuration/Documents/Заказ/Forms/Форма/Module.bsl"
 lsp-skill definition "1c-src/Configuration/Documents/Заказ/Forms/Форма/Module.bsl" --line 119 --col 7
 lsp-skill references "1c-src/Configuration/Documents/Заказ/Forms/Форма/Module.bsl" --line 119 --col 7
+lsp-skill incoming-calls "1c-src/Configuration/Documents/Заказ/Forms/Форма/Module.bsl" --line 119 --col 7
+lsp-skill outgoing-calls "1c-src/Configuration/Documents/Заказ/Forms/Форма/Module.bsl" --line 119 --col 7
 lsp-skill workspace-symbols "ПолучитьФункциональнуюОпцию"
 ```

@@ -54,6 +54,7 @@ pub fn router(manager: Arc<LspManager>, kind: McpKind) -> Router {
             "MCP-сервер семантической навигации по коду 1С:Предприятие 8 (BSL). \
              Использует bsl-language-server для навигации по символам: получение структуры модуля \
              (symbols), переход к определению (definition), поиск всех ссылок (references), \
+             входящие вызовы (incoming_calls), исходящие вызовы (outgoing_calls), \
              поиск символов по проекту (workspace_symbols). \
              Координаты line и character — zero-based (начиная с 0). \
              Передавайте file_path относительно корня проекта (project_root_path). \
@@ -214,6 +215,60 @@ static NAVIGATION_TOOLS: &[ToolDef] = &[
             })
         },
     },
+    ToolDef {
+        name: "incoming_calls",
+        description: "Находит все места, откуда вызывается процедура или функция в указанной позиции. \
+                      Сначала подготавливает элемент call hierarchy через prepareCallHierarchy, \
+                      затем возвращает IncomingCall[] с caller и ranges. Если позиция не указывает \
+                      на процедуру или функцию, результат будет null.",
+        input_schema: || {
+            json!({
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": FILE_PATH_DESC
+                    },
+                    "line": {
+                        "type": "integer",
+                        "description": LINE_DESC
+                    },
+                    "character": {
+                        "type": "integer",
+                        "description": CHARACTER_DESC
+                    }
+                },
+                "required": ["file_path", "line", "character"]
+            })
+        },
+    },
+    ToolDef {
+        name: "outgoing_calls",
+        description: "Находит все процедуры и функции, которые вызываются из процедуры или функции \
+                      в указанной позиции. Сначала подготавливает элемент call hierarchy через \
+                      prepareCallHierarchy, затем возвращает OutgoingCall[] с callee и ranges. \
+                      Если позиция не указывает на процедуру или функцию, результат будет null.",
+        input_schema: || {
+            json!({
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": FILE_PATH_DESC
+                    },
+                    "line": {
+                        "type": "integer",
+                        "description": LINE_DESC
+                    },
+                    "character": {
+                        "type": "integer",
+                        "description": CHARACTER_DESC
+                    }
+                },
+                "required": ["file_path", "line", "character"]
+            })
+        },
+    },
 ];
 
 // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -320,6 +375,8 @@ async fn handle_tools_call(
         "symbols" => call_symbols(manager, &project_id, &arguments).await,
         "definition" => call_definition(manager, &project_id, &arguments).await,
         "references" => call_references(manager, &project_id, &arguments).await,
+        "incoming_calls" => call_incoming_calls(manager, &project_id, &arguments).await,
+        "outgoing_calls" => call_outgoing_calls(manager, &project_id, &arguments).await,
         "workspace_symbols" => call_workspace_symbols(manager, &project_id, &arguments).await,
         _ => Err(format!("Неизвестный инструмент: {tool_name}")),
     };
@@ -423,6 +480,34 @@ async fn call_workspace_symbols(
     let query = extract_str(args, "query")?;
     manager
         .workspace_symbols(project_id, query)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+async fn call_incoming_calls(
+    manager: &LspManager,
+    project_id: &str,
+    args: &Value,
+) -> Result<Value, String> {
+    let file_path = extract_str(args, "file_path")?;
+    let line = extract_u32(args, "line")?;
+    let character = extract_u32(args, "character")?;
+    manager
+        .incoming_calls(project_id, file_path, line, character)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+async fn call_outgoing_calls(
+    manager: &LspManager,
+    project_id: &str,
+    args: &Value,
+) -> Result<Value, String> {
+    let file_path = extract_str(args, "file_path")?;
+    let line = extract_u32(args, "line")?;
+    let character = extract_u32(args, "character")?;
+    manager
+        .outgoing_calls(project_id, file_path, line, character)
         .await
         .map_err(|e| e.to_string())
 }

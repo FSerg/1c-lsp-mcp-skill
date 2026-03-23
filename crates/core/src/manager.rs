@@ -31,6 +31,7 @@ pub(crate) struct ProjectState {
     status: ProjectStatus,
     client: Option<LspClient>,
     child: Option<Arc<Mutex<Child>>>,
+    server_caps: Option<ServerCaps>,
     diagnostics: HashMap<String, Value>,
     opened_files: HashMap<String, u32>,
     progress: IndexingProgress,
@@ -46,6 +47,7 @@ impl ProjectState {
             status: ProjectStatus::Stopped,
             client: None,
             child: None,
+            server_caps: None,
             diagnostics: HashMap::new(),
             opened_files: HashMap::new(),
             progress: IndexingProgress::default(),
@@ -70,6 +72,13 @@ pub struct LspManager {
     paths: AppPaths,
     config: Arc<RwLock<AppConfig>>,
     event_tx: broadcast::Sender<LspEvent>,
+}
+
+#[derive(Clone, Debug)]
+struct ServerCaps {
+    supports_pull_diagnostics: bool,
+    supports_call_hierarchy: bool,
+    supports_did_save: bool,
 }
 
 impl LspManager {
@@ -233,6 +242,7 @@ impl LspManager {
             state.progress = IndexingProgress::default();
             state.diagnostics.clear();
             state.opened_files.clear();
+            state.server_caps = None;
             state.client = None;
             state.child = None;
 
@@ -396,7 +406,7 @@ impl LspManager {
             }
         }
 
-        initialize_client(&client, &root_path)
+        let server_caps = initialize_client(&client, &root_path)
             .await
             .map_err(|err| {
                 let message = err.to_string();
@@ -417,6 +427,23 @@ impl LspManager {
                 });
                 ServiceError::Internal("Не удалось инициализировать LSP-сервер.".to_string())
             })?;
+
+        let caps_line = format!(
+            "Server capabilities: pull_diagnostics={}, call_hierarchy={}, did_save={}",
+            server_caps.supports_pull_diagnostics,
+            server_caps.supports_call_hierarchy,
+            server_caps.supports_did_save
+        );
+        let _ = append_project_log(
+            self.paths.logs_dir.clone(),
+            id.to_string(),
+            caps_line.clone(),
+        )
+        .await;
+        let _ = self.event_tx.send(LspEvent::LogLine {
+            id: id.to_string(),
+            line: caps_line,
+        });
 
         let watcher = match crate::watcher::start_project_watcher(
             &root_path,
@@ -442,6 +469,7 @@ impl LspManager {
             state.client = Some(client);
             state.child = Some(child.clone());
             state.watcher = watcher;
+            state.server_caps = Some(server_caps);
             state.status = ProjectStatus::WarmingUp;
         }
         self.emit_status(id, &project).await;
@@ -500,6 +528,7 @@ impl LspManager {
             state.client = None;
             state.child = None;
             state.watcher = None;
+            state.server_caps = None;
             state.diagnostics.clear();
             state.opened_files.clear();
             state.progress = IndexingProgress::default();
@@ -518,21 +547,58 @@ impl LspManager {
     }
 
     pub async fn diagnostics(&self, id: &str, file_path: &str) -> Result<Value, ServiceError> {
-        let (project, uri, _) = self.ensure_file_opened(id, file_path).await?;
-        let deadline = Instant::now() + Duration::from_secs(30);
-        loop {
-            if let Some(value) = project.read().await.diagnostics.get(&uri).cloned() {
-                return Ok(value);
-            }
-            if Instant::now() >= deadline {
-                return Ok(json!({
-                    "uri": uri,
-                    "diagnostics": [],
-                    "_note": "Истекло время ожидания диагностики"
-                }));
-            }
-            sleep(Duration::from_millis(500)).await;
+        let (project, uri, client) = self.ensure_file_opened(id, file_path).await?;
+        let (supports_pull, supports_save) = {
+            let state = project.read().await;
+            let caps = state.server_caps.as_ref();
+            (
+                caps.map(|c| c.supports_pull_diagnostics).unwrap_or(false),
+                caps.map(|c| c.supports_did_save).unwrap_or(false),
+            )
+        };
+
+        if !supports_pull {
+            return Err(ServiceError::Internal(
+                "BSL Language Server не поддерживает pull diagnostics (textDocument/diagnostic). \
+                 Обновите bsl-language-server до актуальной версии."
+                    .to_string(),
+            ));
         }
+
+        if supports_save {
+            let _ = client
+                .notify(
+                    "textDocument/didSave",
+                    json!({
+                        "textDocument": { "uri": uri }
+                    }),
+                )
+                .await;
+        }
+
+        self.log(id, format!(">> textDocument/diagnostic: {file_path}"))
+            .await;
+
+        let result = client
+            .request(
+                "textDocument/diagnostic",
+                json!({
+                    "textDocument": { "uri": uri }
+                }),
+            )
+            .await
+            .map_err(|err| ServiceError::Internal(err.to_string()))?;
+
+        let items = result.get("items").cloned().unwrap_or_else(|| json!([]));
+        let count = items.as_array().map(|a| a.len()).unwrap_or(0);
+
+        self.log(
+            id,
+            format!("<< textDocument/diagnostic: {count} диагностик"),
+        )
+        .await;
+
+        Ok(json!({ "uri": uri, "diagnostics": items }))
     }
 
     pub async fn symbols(&self, id: &str, file_path: &str) -> Result<Value, ServiceError> {
@@ -635,6 +701,136 @@ impl LspManager {
         }
 
         result
+    }
+
+    pub async fn incoming_calls(
+        &self,
+        id: &str,
+        file_path: &str,
+        line: u32,
+        character: u32,
+    ) -> Result<Value, ServiceError> {
+        let (project, uri, client) = self.ensure_file_opened(id, file_path).await?;
+        let supports = project
+            .read()
+            .await
+            .server_caps
+            .as_ref()
+            .map(|c| c.supports_call_hierarchy)
+            .unwrap_or(false);
+
+        if !supports {
+            return Err(ServiceError::Internal(
+                "BSL Language Server не поддерживает Call Hierarchy. \
+                 Обновите bsl-language-server до актуальной версии."
+                    .to_string(),
+            ));
+        }
+
+        self.log(
+            id,
+            format!(">> incoming_calls: {file_path} ({line}:{character})"),
+        )
+        .await;
+
+        let items = client
+            .request(
+                "textDocument/prepareCallHierarchy",
+                json!({
+                    "textDocument": { "uri": uri },
+                    "position": { "line": line, "character": character }
+                }),
+            )
+            .await
+            .map_err(|err| ServiceError::Internal(err.to_string()))?;
+
+        let item = match items.as_array().and_then(|arr| arr.first()) {
+            Some(item) => item.clone(),
+            None => {
+                self.log(
+                    id,
+                    "<< incoming_calls: null (позиция не указывает на процедуру/функцию)".into(),
+                )
+                .await;
+                return Ok(Value::Null);
+            }
+        };
+
+        let result = client
+            .request("callHierarchy/incomingCalls", json!({ "item": item }))
+            .await
+            .map_err(|err| ServiceError::Internal(err.to_string()))?;
+
+        let count = result.as_array().map(|a| a.len()).unwrap_or(0);
+        self.log(id, format!("<< incoming_calls: {count} результатов"))
+            .await;
+
+        Ok(result)
+    }
+
+    pub async fn outgoing_calls(
+        &self,
+        id: &str,
+        file_path: &str,
+        line: u32,
+        character: u32,
+    ) -> Result<Value, ServiceError> {
+        let (project, uri, client) = self.ensure_file_opened(id, file_path).await?;
+        let supports = project
+            .read()
+            .await
+            .server_caps
+            .as_ref()
+            .map(|c| c.supports_call_hierarchy)
+            .unwrap_or(false);
+
+        if !supports {
+            return Err(ServiceError::Internal(
+                "BSL Language Server не поддерживает Call Hierarchy. \
+                 Обновите bsl-language-server до актуальной версии."
+                    .to_string(),
+            ));
+        }
+
+        self.log(
+            id,
+            format!(">> outgoing_calls: {file_path} ({line}:{character})"),
+        )
+        .await;
+
+        let items = client
+            .request(
+                "textDocument/prepareCallHierarchy",
+                json!({
+                    "textDocument": { "uri": uri },
+                    "position": { "line": line, "character": character }
+                }),
+            )
+            .await
+            .map_err(|err| ServiceError::Internal(err.to_string()))?;
+
+        let item = match items.as_array().and_then(|arr| arr.first()) {
+            Some(item) => item.clone(),
+            None => {
+                self.log(
+                    id,
+                    "<< outgoing_calls: null (позиция не указывает на процедуру/функцию)".into(),
+                )
+                .await;
+                return Ok(Value::Null);
+            }
+        };
+
+        let result = client
+            .request("callHierarchy/outgoingCalls", json!({ "item": item }))
+            .await
+            .map_err(|err| ServiceError::Internal(err.to_string()))?;
+
+        let count = result.as_array().map(|a| a.len()).unwrap_or(0);
+        self.log(id, format!("<< outgoing_calls: {count} результатов"))
+            .await;
+
+        Ok(result)
     }
 
     pub async fn workspace_symbols(&self, id: &str, query: &str) -> Result<Value, ServiceError> {
@@ -757,8 +953,6 @@ impl LspManager {
             }
             Some(ver) => {
                 // Already opened — send didChange with full content.
-                // Requires computeTrigger: "onType" in bsl-language-server
-                // config for diagnostics to be recalculated.
                 let new_version = ver + 1;
                 {
                     let mut state = project.write().await;
@@ -1094,12 +1288,12 @@ fn apply_progress_value(progress: &mut IndexingProgress, value: &Value) {
     }
 }
 
-async fn initialize_client(client: &LspClient, root_path: &str) -> AnyResult<()> {
+async fn initialize_client(client: &LspClient, root_path: &str) -> AnyResult<ServerCaps> {
     let root_uri = Url::from_directory_path(root_path)
         .map_err(|_| anyhow::anyhow!("invalid root path"))?
         .to_string();
 
-    client
+    let result = client
         .request(
             "initialize",
             json!({
@@ -1112,6 +1306,8 @@ async fn initialize_client(client: &LspClient, root_path: &str) -> AnyResult<()>
                 "capabilities": {
                     "textDocument": {
                         "publishDiagnostics": { "relatedInformation": true },
+                        "diagnostic": { "dynamicRegistration": false },
+                        "synchronization": { "didSave": true },
                         "documentSymbol": {
                             "hierarchicalDocumentSymbolSupport": true
                         },
@@ -1121,6 +1317,9 @@ async fn initialize_client(client: &LspClient, root_path: &str) -> AnyResult<()>
                         "definition": {
                             "dynamicRegistration": false,
                             "linkSupport": true
+                        },
+                        "callHierarchy": {
+                            "dynamicRegistration": false
                         }
                     },
                     "window": {
@@ -1138,8 +1337,25 @@ async fn initialize_client(client: &LspClient, root_path: &str) -> AnyResult<()>
             }),
         )
         .await?;
+
+    let capabilities = result
+        .get("capabilities")
+        .or_else(|| {
+            result
+                .get("result")
+                .and_then(|value| value.get("capabilities"))
+        })
+        .cloned()
+        .unwrap_or(Value::Null);
+
+    let server_caps = ServerCaps {
+        supports_pull_diagnostics: capability_supported(capabilities.get("diagnosticProvider")),
+        supports_call_hierarchy: capability_supported(capabilities.get("callHierarchyProvider")),
+        supports_did_save: text_document_sync_supports_save(capabilities.get("textDocumentSync")),
+    };
+
     client.notify("initialized", json!({})).await?;
-    Ok(())
+    Ok(server_caps)
 }
 
 async fn watch_project_process(
@@ -1166,6 +1382,7 @@ async fn watch_project_process(
                 state.client = None;
                 state.child = None;
                 state.watcher = None;
+                state.server_caps = None;
                 state.opened_files.clear();
                 if state.status.is_stopped() {
                     None
@@ -1260,7 +1477,6 @@ const DEFAULT_BSL_CONFIG: &str = r#"{
   "$schema": "https://1c-syntax.github.io/bsl-language-server/configuration/schema.json",
   "language": "ru",
   "diagnostics": {
-    "computeTrigger": "onType",
     "minimumLSPDiagnosticLevel": "Warning",
     "parameters": {
       "MethodSize": false
@@ -1279,28 +1495,36 @@ fn effective_bsl_config(user_config: &str) -> &str {
 }
 
 /// Validates BSL config JSON. Empty config is OK (default is used at start).
-/// Non-empty config must be valid JSON with `diagnostics.computeTrigger: "onType"`.
 fn validate_bsl_config(config: &str) -> Result<(), ServiceError> {
     if config.trim().is_empty() {
-        return Ok(()); // default will be used at start
+        return Ok(());
     }
-    let parsed: Value = serde_json::from_str(config.trim()).map_err(|err| {
+    serde_json::from_str::<Value>(config.trim()).map_err(|err| {
         ServiceError::InvalidRequest(format!("Конфигурация BSL содержит невалидный JSON: {err}"))
     })?;
-    let trigger = parsed
-        .get("diagnostics")
-        .and_then(|d| d.get("computeTrigger"))
-        .and_then(|v| v.as_str());
-    match trigger {
-        Some("onType") => Ok(()),
-        Some(other) => Err(ServiceError::InvalidRequest(format!(
-            "diagnostics.computeTrigger = \"{other}\", требуется \"onType\". \
-             Без этого диагностики не будут обновляться после редактирования файлов."
-        ))),
-        None => Err(ServiceError::InvalidRequest(
-            "В конфигурации BSL отсутствует diagnostics.computeTrigger = \"onType\". \
-             Без этого диагностики не будут обновляться после редактирования файлов."
-                .to_string(),
-        )),
+    Ok(())
+}
+
+fn capability_supported(value: Option<&Value>) -> bool {
+    match value {
+        Some(Value::Bool(supported)) => *supported,
+        Some(Value::Null) | None => false,
+        Some(_) => true,
+    }
+}
+
+fn text_document_sync_supports_save(value: Option<&Value>) -> bool {
+    let Some(value) = value else {
+        return false;
+    };
+
+    match value {
+        Value::Number(_) => false,
+        Value::Object(sync) => match sync.get("save") {
+            Some(Value::Bool(supported)) => *supported,
+            Some(Value::Null) | None => false,
+            Some(_) => true,
+        },
+        _ => false,
     }
 }

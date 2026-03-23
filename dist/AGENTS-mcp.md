@@ -9,7 +9,7 @@ Instructions for LLM agents (IDE agents, Copilot, Cursor, etc.) that connect to 
 | Server | Default port | Purpose |
 |---|---|---|
 | **1c-lsp-diagnostics** | `9011` | Static analysis: syntax errors, warnings, code analyzer remarks |
-| **1c-lsp-navigation** | `9012` | Semantic navigation: symbols, definition, references, workspace search |
+| **1c-lsp-navigation** | `9012` | Semantic navigation: symbols, definition, references, call hierarchy, workspace search |
 
 Both servers implement MCP protocol version `2025-03-26` and use JSON-RPC 2.0 over `POST /mcp`.
 
@@ -29,13 +29,13 @@ All `file_path` parameters must be **relative to `project_root_path`** (the proj
 
 Example: `1c-src/Configuration/CommonModules/ОбщийМодуль1/Module.bsl`
 
-## Coordinate rules (definition, references)
+## Coordinate rules (definition, references, incoming_calls, outgoing_calls)
 
 LSP coordinates are **zero-based**:
 - `line`: first line = 0
 - `character`: first character on a line = 0
 
-Verify the exact position before calling `definition` or `references` — an off-by-one error leads to empty or incorrect results.
+Verify the exact position before calling `definition`, `references`, `incoming_calls`, or `outgoing_calls` — an off-by-one error leads to empty or incorrect results.
 
 ## Server: 1c-lsp-diagnostics (port 9011)
 
@@ -68,7 +68,7 @@ Analyzes a BSL file and returns an array of LSP Diagnostic objects.
 
 ## Server: 1c-lsp-navigation (port 9012)
 
-Semantic navigation across 1C (BSL) code through `bsl-language-server`. Prefer these tools over text search (grep) for reliable code navigation.
+Semantic navigation across 1C (BSL) code through `bsl-language-server`. Prefer these tools over text search (grep) for reliable code navigation. Besides symbols, definitions, and references, the server also exposes direct call hierarchy for procedures and functions.
 
 ### Tool: `symbols`
 
@@ -120,6 +120,38 @@ Finds all usages (references) of a symbol at the given position across the entir
 
 **Prefer this over text search (grep)** for reliable dependency analysis in 1C code.
 
+### Tool: `incoming_calls`
+
+Finds all direct callers of the procedure or function at the given position.
+
+**When to use**: before changing a procedure/function to understand who calls it.
+
+**Parameters**:
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `file_path` | string | yes | Path to .bsl file relative to project_root_path |
+| `line` | integer | yes | Line number (zero-based, first line = 0) |
+| `character` | integer | yes | Character position in line (zero-based, first char = 0) |
+
+**Response**: `CallHierarchyIncomingCall[]` or `null`. The server first prepares the call hierarchy item and then returns direct callers with `from` and `fromRanges`.
+
+### Tool: `outgoing_calls`
+
+Finds all direct callees of the procedure or function at the given position.
+
+**When to use**: to understand what the current procedure/function depends on before editing it.
+
+**Parameters**:
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `file_path` | string | yes | Path to .bsl file relative to project_root_path |
+| `line` | integer | yes | Line number (zero-based, first line = 0) |
+| `character` | integer | yes | Character position in line (zero-based, first char = 0) |
+
+**Response**: `CallHierarchyOutgoingCall[]` or `null`. The server first prepares the call hierarchy item and then returns direct callees with `to` and `fromRanges`.
+
 ### Tool: `workspace_symbols`
 
 Searches for symbols (procedures, functions, variables) across the entire project by text query.
@@ -142,7 +174,7 @@ Prefer exact names or distinctive fragments. Avoid empty queries on large projec
 - Treat missing results as ambiguous, not final. Common causes: indexing in progress, wrong coordinates, wrong relative path, dynamic dispatch.
 - Cite exact returned ranges, files, and messages when summarizing findings.
 - Re-run diagnostics after edits — do not assume the issue is resolved.
-- Prefer semantic navigation (`symbols`, `definition`, `references`) over text search when available.
+- Prefer semantic navigation (`symbols`, `definition`, `references`, `incoming_calls`, `outgoing_calls`) over text search when available.
 
 ## Error handling
 
