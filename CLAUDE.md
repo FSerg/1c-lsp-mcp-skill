@@ -143,6 +143,57 @@ dist/                  — файлы, включаемые в релизный 
 └── release.yml        — Release: сборка бандлов на 4 target'а (на тег v*)
 ```
 
+## GitHub Pipeline
+
+### CI (`.github/workflows/ci.yml`)
+
+- Запускается на `push` и `pull_request` для `main`.
+- Проверяет базовое качество репозитория: `cargo fmt --check`, `cargo clippy`, `cargo test`.
+- Дополнительно проверяет фронтенд через `cargo check -p lsp-skill-frontend --target wasm32-unknown-unknown`.
+- Перед отправкой изменений в `main` желательно локально прогнать тот же минимальный набор команд.
+
+Пример локальной проверки перед push:
+
+```bash
+cargo fmt --check
+cargo check
+cargo check -p lsp-skill-frontend --target wasm32-unknown-unknown
+cargo clippy
+cargo test
+```
+
+### Release (`.github/workflows/release.yml`)
+
+- Запускается при публикации тега формата `v*` (например, `v0.1.3`).
+- Собирает релизные бандлы для 4 target-платформ.
+- Публикует артефакты в GitHub Release, привязанном к тегу.
+- Для корректного релиза нужно:
+  1. Обновить `main`.
+  2. Создать аннотированный тег `vX.Y.Z` с текстом релиза.
+  3. Запушить `main` и сам тег.
+
+Пример команд для merge и релиза:
+
+```bash
+git checkout main
+git merge --ff-only <feature-branch>
+git push origin main
+
+git tag -a v0.1.3 -m "Новое в релизе:
+- Пункт 1
+- Пункт 2
+- Пункт 3"
+
+git push origin v0.1.3
+gh release create v0.1.3 --title v0.1.3 --notes-from-tag
+```
+
+### Практика работы
+
+- Для обычных изменений ориентируйся на зелёный CI перед merge.
+- Для релизов проверяй, что текст annotated tag подходит как release notes, потому что он используется при публикации релиза.
+- Если менялись packaging, release scripts или release workflow, отдельно перепроверь `scripts/release.sh` и `.github/workflows/release.yml`.
+
 ## Frontend Build Details
 
 `scripts/build-frontend.sh`:

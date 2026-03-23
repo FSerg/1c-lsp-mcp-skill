@@ -14,7 +14,8 @@
 - Запускать несколько инстансов `bsl-language-server` (свой на каждый 1С-проект) c прогрессом индексации (наполнения контекста)
 - Проверка синтаксиса: `diagnostics` через MCP или SKILLs CLI
 - Передавать `bsl-language-server` изменения в кодовой базе 1С-проекта (эффективная push-модель)
-- Навигация по кодовой базе: `symbols`, `references`, `definition`, `workspace-symbols` через MCP или SKILLs CLI
+- Навигация по кодовой базе: `symbols`, `references`, `definition`, `workspace-symbols`, `incoming-calls`, `outgoing-calls` через MCP или SKILLs CLI
+- Call Hierarchy: отвечать на вопросы "Кто вызывает эту процедуру?" и "Что вызывает эта процедура?"
 - Каждый инстанс `bsl-language-server` можно запускать со своими jvm ключами (для больших 1С-проектов нужно выделять больше RAM)
 - Каждый инстанс `bsl-language-server` можно запускать со своим [конфигурационным файлом](https://1c-syntax.github.io/bsl-language-server/features/ConfigurationFile/) (например, с разными исключениями для диагностик)
 - Работать как служба в фоне (опционально)
@@ -25,7 +26,6 @@
 ![Проверка синтаксиса](dist/pics/Pic04.png)
 
 ## Ближайшие планы
-- Добавить CallHierarchy ("Кто вызывает эту процедуру?" и "Что вызывает эта процедура?")
 - Уменьшить вербозность (многословность) ответов bsl-language-server
 
 ## Комплект поставки в релизе
