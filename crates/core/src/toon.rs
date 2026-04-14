@@ -32,7 +32,19 @@ fn flatten_lsp(value: Value) -> Value {
 fn flatten_object(map: Map<String, Value>) -> Value {
     let mut flattened = Map::new();
     for (key, value) in map {
-        flattened.insert(snake_case(&key), flatten_lsp(value));
+        let snake_key = snake_case(&key);
+        if snake_key == "code_description" {
+            continue;
+        }
+        let flat_value = flatten_lsp(value);
+        if snake_key == "tags" {
+            if let Value::Array(items) = &flat_value {
+                if items.is_empty() {
+                    continue;
+                }
+            }
+        }
+        flattened.insert(snake_key, flat_value);
     }
 
     if let Some((sl, sc, el, ec)) = extract_raw_range(&flattened) {
@@ -920,5 +932,103 @@ mod tests {
     #[test]
     fn handles_empty_object() {
         assert_eq!(to_toon(&json!({})), "");
+    }
+
+    #[test]
+    fn drops_code_description_and_empty_tags() {
+        let value = json!({
+            "code": "ParseError",
+            "codeDescription": { "href": "https://example/ParseError" },
+            "message": "boom",
+            "range": {
+                "start": { "line": 1, "character": 0 },
+                "end": { "line": 1, "character": 5 }
+            },
+            "severity": 1,
+            "source": "bsl-language-server",
+            "tags": []
+        });
+
+        assert_eq!(
+            flatten_lsp(value),
+            json!({
+                "code": "ParseError",
+                "message": "boom",
+                "range_sl": 1,
+                "range_sc": 0,
+                "range_el": 1,
+                "range_ec": 5,
+                "severity": 1,
+                "source": "bsl-language-server"
+            })
+        );
+    }
+
+    #[test]
+    fn keeps_empty_diagnostics_array() {
+        let value = json!({
+            "uri": "file:///a.bsl",
+            "diagnostics": []
+        });
+
+        let rendered = format_response("diagnostics", &value, true);
+        assert!(
+            rendered.contains("diagnostics[0]:"),
+            "expected empty diagnostics marker, got:\n{rendered}"
+        );
+    }
+
+    #[test]
+    fn keeps_empty_children_array() {
+        let value = json!({
+            "name": "Module",
+            "children": []
+        });
+
+        assert_eq!(
+            flatten_lsp(value),
+            json!({
+                "name": "Module",
+                "children": []
+            })
+        );
+    }
+
+    #[test]
+    fn diagnostics_collapse_into_table() {
+        let value = json!({
+            "diagnostics": [
+                {
+                    "code": "A",
+                    "codeDescription": { "href": "x" },
+                    "message": "m1",
+                    "range": {
+                        "start": { "line": 1, "character": 2 },
+                        "end": { "line": 1, "character": 3 }
+                    },
+                    "severity": 1,
+                    "source": "bsl",
+                    "tags": []
+                },
+                {
+                    "code": "B",
+                    "codeDescription": { "href": "y" },
+                    "message": "m2",
+                    "range": {
+                        "start": { "line": 4, "character": 5 },
+                        "end": { "line": 4, "character": 6 }
+                    },
+                    "severity": 2,
+                    "source": "bsl",
+                    "tags": []
+                }
+            ]
+        });
+
+        let rendered = format_response("diagnostics", &value, true);
+        assert!(
+            rendered.starts_with("diagnostics[2]{"),
+            "expected tabular output, got:\n{rendered}"
+        );
     }
 }
