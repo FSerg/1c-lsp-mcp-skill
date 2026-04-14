@@ -1,0 +1,10 @@
+diagnostics:
+  - message: Конфликт имени
+    range_ec: 10
+    range_el: 5
+    range_sc: 0
+    range_sl: 5
+    related_information[1]{location_ec,location_el,location_sc,location_sl,location_uri,message}:
+      12,99,0,99,"file:///project/Other.bsl",Первое объявление здесь
+    severity: 1
+uri: "file:///project/Module.bsl"

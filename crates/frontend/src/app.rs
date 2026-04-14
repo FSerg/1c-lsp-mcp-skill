@@ -73,7 +73,7 @@ const DEFAULT_BSL_CONFIG: &str = r#"{
   "$schema": "https://1c-syntax.github.io/bsl-language-server/configuration/schema.json",
   "language": "ru",
   "diagnostics": {
-    "minimumLSPDiagnosticLevel": "Warning",
+    "minimumLSPDiagnosticLevel": "Error",
     "parameters": {
       "MethodSize": false
     }
@@ -119,6 +119,8 @@ pub struct SettingsPayload {
     pub mcp_navigation_enabled: bool,
     #[serde(default)]
     pub mcp_navigation_port: u16,
+    #[serde(default)]
+    pub use_toon_format: bool,
     pub config_path: String,
     pub db_path: String,
     pub logs_dir: String,
@@ -1033,6 +1035,28 @@ pub fn App() -> Element {
                                                 },
                                             }
                                         }
+                                    }
+                                }
+                            }
+
+                            div { class: "space-y-4",
+                                h3 { class: "text-lg font-semibold", "Формат ответов для LLM" }
+                                p { class: "text-sm text-base-content/60",
+                                    "Применяется к ответам MCP и CLI. Изменение вступает в силу немедленно, без перезапуска."
+                                }
+
+                                div { class: "rounded-box border border-base-300 p-4 space-y-3",
+                                    div { class: "flex items-center justify-between",
+                                        span { class: "font-medium", "Использовать TOON-формат" }
+                                        input {
+                                            r#type: "checkbox",
+                                            class: "toggle toggle-sm",
+                                            checked: settings_form().use_toon_format,
+                                            onchange: move |evt: Event<FormData>| settings_form.with_mut(|form| form.use_toon_format = evt.checked()),
+                                        }
+                                    }
+                                    p { class: "text-xs text-base-content/60",
+                                        "Компактный формат вместо JSON. Экономит ~30–50% токенов для LLM-агентов. HTTP API продолжает отдавать JSON."
                                     }
                                 }
                             }

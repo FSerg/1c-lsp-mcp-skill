@@ -15,6 +15,21 @@ The CLI discovers `PROJECT_ID` from a `.env` file in the current directory or a 
 
 If the project is not ready (starting, stopped, error), commands will return an error — handle it when it happens instead of checking upfront. You can run `lsp-skill status` to inspect project state if needed for troubleshooting.
 
+## Output Format
+
+Navigation commands read `use_toon_format` from `lsp-skill` config.
+
+- `false` keeps pretty JSON.
+- `true` switches to compact TOON with aliases such as `range -> range_sl/range_sc/range_el/range_ec`, `selectionRange -> selection_range_*`, `location -> location_*`, `targetUri -> target_uri`, `containerName -> container_name`, and inlined `from_*` / `to_*`.
+
+Example:
+
+```text
+references[2]{range_ec,range_el,range_sc,range_sl,uri}:
+  5,1,0,1,"file:///a.bsl"
+  9,2,4,2,"file:///b.bsl"
+```
+
 ## Use Safe Coordinates And Paths
 
 Each project has two root paths:

@@ -1,0 +1,13 @@
+symbols:
+  - children[1]{kind,name,range_ec,range_el,range_sc,range_sl,selection_range_ec,selection_range_el,selection_range_sc,selection_range_sl}:
+    6,ПроверитьКонтекст,4,10,4,3,33,3,14,3
+    kind: 12
+    name: Инициализация
+    range_ec: 0
+    range_el: 20
+    range_sc: 0
+    range_sl: 0
+    selection_range_ec: 24
+    selection_range_el: 0
+    selection_range_sc: 10
+    selection_range_sl: 0

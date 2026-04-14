@@ -22,6 +22,8 @@ pub struct AppConfig {
     pub mcp_navigation_enabled: bool,
     #[serde(default = "default_mcp_navigation_port")]
     pub mcp_navigation_port: u16,
+    #[serde(default)]
+    pub use_toon_format: bool,
 }
 
 impl Default for AppConfig {
@@ -35,6 +37,7 @@ impl Default for AppConfig {
             mcp_diagnostics_port: default_mcp_diagnostics_port(),
             mcp_navigation_enabled: false,
             mcp_navigation_port: default_mcp_navigation_port(),
+            use_toon_format: false,
         }
     }
 }

@@ -1,0 +1,25 @@
+{
+  "uri": "file:///project/Module.bsl",
+  "diagnostics": [
+    {
+      "range": {
+        "start": { "line": 5, "character": 0 },
+        "end": { "line": 5, "character": 10 }
+      },
+      "severity": 1,
+      "message": "Конфликт имени",
+      "relatedInformation": [
+        {
+          "location": {
+            "uri": "file:///project/Other.bsl",
+            "range": {
+              "start": { "line": 99, "character": 0 },
+              "end": { "line": 99, "character": 12 }
+            }
+          },
+          "message": "Первое объявление здесь"
+        }
+      ]
+    }
+  ]
+}

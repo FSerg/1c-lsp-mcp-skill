@@ -9,10 +9,18 @@ use clap::{Parser, Subcommand};
 
 use lsp_skill_core::{logging, AppConfig, AppPaths};
 
+const VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    " (",
+    env!("LSP_SKILL_GIT_SHA"),
+    ")"
+);
+
 #[derive(Parser)]
 #[command(
     name = "lsp-skill-server",
-    about = "1C LSP Skill — менеджер BSL Language Server"
+    about = "1C LSP Skill — менеджер BSL Language Server",
+    version = VERSION
 )]
 struct Cli {
     #[command(subcommand)]

@@ -1,0 +1,3 @@
+references[2]{range_ec,range_el,range_sc,range_sl,uri}:
+  5,1,0,1,"file:///a.bsl"
+  9,2,4,2,"file:///b.bsl"

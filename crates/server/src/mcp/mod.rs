@@ -13,6 +13,21 @@ use lsp_skill_core::LspManager;
 
 use protocol::*;
 
+macro_rules! toon_note {
+    () => {
+        " Формат ответа зависит от настройки use_toon_format. При false (по умолчанию) \
+         возвращается стандартный LSP JSON с оригинальными полями. При true используется \
+         компактный TOON: range -> range_sl/range_sc/range_el/range_ec; selectionRange -> \
+         selection_range_sl/selection_range_sc/selection_range_el/selection_range_ec; \
+         location -> location_uri/location_sl/location_sc/location_el/location_ec; \
+         targetUri -> target_uri; targetRange -> target_range_sl/target_range_sc/target_range_el/target_range_ec; \
+         targetSelectionRange -> target_selection_range_sl/target_selection_range_sc/target_selection_range_el/target_selection_range_ec; \
+         originSelectionRange -> origin_selection_range_sl/origin_selection_range_sc/origin_selection_range_el/origin_selection_range_ec \
+         (null если отсутствует); containerName -> container_name; from/to инлайнятся с \
+         префиксом from_/to_. Координаты 0-based."
+    };
+}
+
 // ── State & types ────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -83,13 +98,16 @@ pub fn router(manager: Arc<LspManager>, kind: McpKind) -> Router {
 
 static DIAGNOSTICS_TOOLS: &[ToolDef] = &[ToolDef {
     name: "diagnostics",
-    description: "Выполняет статический анализ файла 1С (BSL) через bsl-language-server \
-                  и возвращает список диагностик: синтаксические ошибки, предупреждения, \
-                  замечания анализатора кода. Результат — массив LSP Diagnostic с полями \
-                  range, severity (1=Error, 2=Warning, 3=Information, 4=Hint), message, source, code. \
-                  Используйте для проверки кода до и после редактирования, а также для объяснения ошибок. \
-                  Первый запрос к файлу может занять больше времени (файл открывается в LSP-сессии). \
-                  Пустой результат не гарантирует отсутствие ошибок — возможно, индексация ещё идёт.",
+    description: concat!(
+        "Выполняет статический анализ файла 1С (BSL) через bsl-language-server \
+         и возвращает список диагностик: синтаксические ошибки, предупреждения, \
+         замечания анализатора кода. Результат — массив LSP Diagnostic с полями \
+         range, severity (1=Error, 2=Warning, 3=Information, 4=Hint), message, source, code. \
+         Используйте для проверки кода до и после редактирования, а также для объяснения ошибок. \
+         Первый запрос к файлу может занять больше времени (файл открывается в LSP-сессии). \
+         Пустой результат не гарантирует отсутствие ошибок — возможно, индексация ещё идёт.",
+        toon_note!()
+    ),
     input_schema: || {
         json!({
             "type": "object",
@@ -117,11 +135,14 @@ static CHARACTER_DESC: &str =
 static NAVIGATION_TOOLS: &[ToolDef] = &[
     ToolDef {
         name: "symbols",
-        description: "Возвращает структуру модуля 1С (BSL): список процедур, функций, \
-                      переменных и областей (regions) с их позициями и иерархией. \
-                      Результат — DocumentSymbol[] (с hierarchy и children) или SymbolInformation[]. \
-                      Используйте для понимания структуры незнакомого модуля перед редактированием. \
-                      Работает с общими модулями, модулями объектов, менеджеров, форм и команд.",
+        description: concat!(
+            "Возвращает структуру модуля 1С (BSL): список процедур, функций, \
+             переменных и областей (regions) с их позициями и иерархией. \
+             Результат — DocumentSymbol[] (с hierarchy и children) или SymbolInformation[]. \
+             Используйте для понимания структуры незнакомого модуля перед редактированием. \
+             Работает с общими модулями, модулями объектов, менеджеров, форм и команд.",
+            toon_note!()
+        ),
         input_schema: || {
             json!({
                 "type": "object",
@@ -137,11 +158,14 @@ static NAVIGATION_TOOLS: &[ToolDef] = &[
     },
     ToolDef {
         name: "definition",
-        description: "Находит определение (объявление) символа в указанной позиции файла 1С (BSL). \
-                      Возвращает Location, Location[] или LocationLink[] с файлом и позицией объявления. \
-                      Используйте для перехода от вызова процедуры/функции к её реализации, \
-                      в том числе в другие модули. Если результат null — символ не распознан \
-                      или позиция указана неточно.",
+        description: concat!(
+            "Находит определение (объявление) символа в указанной позиции файла 1С (BSL). \
+             Возвращает Location, Location[] или LocationLink[] с файлом и позицией объявления. \
+             Используйте для перехода от вызова процедуры/функции к её реализации, \
+             в том числе в другие модули. Если результат null — символ не распознан \
+             или позиция указана неточно.",
+            toon_note!()
+        ),
         input_schema: || {
             json!({
                 "type": "object",
@@ -165,12 +189,15 @@ static NAVIGATION_TOOLS: &[ToolDef] = &[
     },
     ToolDef {
         name: "references",
-        description: "Находит все места использования (ссылки) символа в указанной позиции \
-                      по всему проекту 1С. Возвращает массив Location[] со всеми файлами и позициями, \
-                      где символ вызывается или упоминается. Включает само объявление в результат \
-                      (includeDeclaration: true). Используйте перед изменением или удалением \
-                      процедуры/функции для оценки области влияния. Предпочитайте этот инструмент \
-                      текстовому поиску (grep) для надёжного определения зависимостей.",
+        description: concat!(
+            "Находит все места использования (ссылки) символа в указанной позиции \
+             по всему проекту 1С. Возвращает массив Location[] со всеми файлами и позициями, \
+             где символ вызывается или упоминается. Включает само объявление в результат \
+             (includeDeclaration: true). Используйте перед изменением или удалением \
+             процедуры/функции для оценки области влияния. Предпочитайте этот инструмент \
+             текстовому поиску (grep) для надёжного определения зависимостей.",
+            toon_note!()
+        ),
         input_schema: || {
             json!({
                 "type": "object",
@@ -194,12 +221,15 @@ static NAVIGATION_TOOLS: &[ToolDef] = &[
     },
     ToolDef {
         name: "workspace_symbols",
-        description: "Ищет символы (процедуры, функции, переменные) по всему проекту 1С \
-                      по текстовому запросу. Возвращает массив SymbolInformation[] с полями \
-                      name, kind, containerName, location. Используйте когда знаете имя символа, \
-                      но не знаете в каком файле он определён. Предпочитайте точные имена \
-                      или уникальные фрагменты. Пустой запрос вернёт все символы проекта \
-                      (избегайте для больших проектов).",
+        description: concat!(
+            "Ищет символы (процедуры, функции, переменные) по всему проекту 1С \
+             по текстовому запросу. Возвращает массив SymbolInformation[] с полями \
+             name, kind, containerName, location. Используйте когда знаете имя символа, \
+             но не знаете в каком файле он определён. Предпочитайте точные имена \
+             или уникальные фрагменты. Пустой запрос вернёт все символы проекта \
+             (избегайте для больших проектов).",
+            toon_note!()
+        ),
         input_schema: || {
             json!({
                 "type": "object",
@@ -217,10 +247,13 @@ static NAVIGATION_TOOLS: &[ToolDef] = &[
     },
     ToolDef {
         name: "incoming_calls",
-        description: "Находит все места, откуда вызывается процедура или функция в указанной позиции. \
-                      Сначала подготавливает элемент call hierarchy через prepareCallHierarchy, \
-                      затем возвращает IncomingCall[] с caller и ranges. Если позиция не указывает \
-                      на процедуру или функцию, результат будет null.",
+        description: concat!(
+            "Находит все места, откуда вызывается процедура или функция в указанной позиции. \
+             Сначала подготавливает элемент call hierarchy через prepareCallHierarchy, \
+             затем возвращает IncomingCall[] с caller и ranges. Если позиция не указывает \
+             на процедуру или функцию, результат будет null.",
+            toon_note!()
+        ),
         input_schema: || {
             json!({
                 "type": "object",
@@ -244,10 +277,13 @@ static NAVIGATION_TOOLS: &[ToolDef] = &[
     },
     ToolDef {
         name: "outgoing_calls",
-        description: "Находит все процедуры и функции, которые вызываются из процедуры или функции \
-                      в указанной позиции. Сначала подготавливает элемент call hierarchy через \
-                      prepareCallHierarchy, затем возвращает OutgoingCall[] с callee и ranges. \
-                      Если позиция не указывает на процедуру или функцию, результат будет null.",
+        description: concat!(
+            "Находит все процедуры и функции, которые вызываются из процедуры или функции \
+             в указанной позиции. Сначала подготавливает элемент call hierarchy через \
+             prepareCallHierarchy, затем возвращает OutgoingCall[] с callee и ranges. \
+             Если позиция не указывает на процедуру или функцию, результат будет null.",
+            toon_note!()
+        ),
         input_schema: || {
             json!({
                 "type": "object",
@@ -383,7 +419,8 @@ async fn handle_tools_call(
 
     match result {
         Ok(value) => {
-            let text = serde_json::to_string_pretty(&value).unwrap_or_default();
+            let use_toon = manager.current_config().await.use_toon_format;
+            let text = lsp_skill_core::toon::format_response(tool_name, &value, use_toon);
             JsonRpcResponse::success(
                 id,
                 json!({

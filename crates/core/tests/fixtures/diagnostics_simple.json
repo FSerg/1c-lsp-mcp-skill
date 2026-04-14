@@ -1,0 +1,25 @@
+{
+  "uri": "file:///project/Module.bsl",
+  "diagnostics": [
+    {
+      "range": {
+        "start": { "line": 10, "character": 4 },
+        "end": { "line": 10, "character": 20 }
+      },
+      "severity": 2,
+      "code": "BSL001",
+      "source": "bsl-language-server",
+      "message": "Неиспользуемая переменная"
+    },
+    {
+      "range": {
+        "start": { "line": 22, "character": 0 },
+        "end": { "line": 22, "character": 15 }
+      },
+      "severity": 1,
+      "code": "BSL042",
+      "source": "bsl-language-server",
+      "message": "Пропущена точка с запятой"
+    }
+  ]
+}

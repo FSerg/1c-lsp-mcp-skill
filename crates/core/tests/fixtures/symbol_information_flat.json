@@ -1,0 +1,26 @@
+[
+  {
+    "name": "ВыполнитьЗапрос",
+    "kind": 12,
+    "deprecated": false,
+    "containerName": "ОбщийМодуль1",
+    "location": {
+      "uri": "file:///CommonModules/Module1.bsl",
+      "range": {
+        "start": { "line": 42, "character": 0 },
+        "end": { "line": 58, "character": 0 }
+      }
+    }
+  },
+  {
+    "name": "ЗаполнитьТаблицу",
+    "kind": 12,
+    "location": {
+      "uri": "file:///CommonModules/Module2.bsl",
+      "range": {
+        "start": { "line": 5, "character": 0 },
+        "end": { "line": 20, "character": 0 }
+      }
+    }
+  }
+]

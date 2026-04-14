@@ -13,6 +13,31 @@ Instructions for LLM agents (IDE agents, Copilot, Cursor, etc.) that connect to 
 
 Both servers implement MCP protocol version `2025-03-26` and use JSON-RPC 2.0 over `POST /mcp`.
 
+## Response format
+
+By default, tools return standard pretty-printed LSP JSON.
+
+If `use_toon_format` is enabled in `lsp-skill` settings, MCP tools return compact TOON with 0-based coordinates and these aliases:
+
+- `range` -> `range_sl`, `range_sc`, `range_el`, `range_ec`
+- `selectionRange` -> `selection_range_sl`, `selection_range_sc`, `selection_range_el`, `selection_range_ec`
+- `originSelectionRange` -> `origin_selection_range_sl`, `origin_selection_range_sc`, `origin_selection_range_el`, `origin_selection_range_ec` (`null` when absent)
+- `targetRange` -> `target_range_sl`, `target_range_sc`, `target_range_el`, `target_range_ec`
+- `targetSelectionRange` -> `target_selection_range_sl`, `target_selection_range_sc`, `target_selection_range_el`, `target_selection_range_ec`
+- `targetUri` -> `target_uri`
+- `location` -> `location_uri`, `location_sl`, `location_sc`, `location_el`, `location_ec`
+- `containerName` -> `container_name`
+- `from` / `to` call hierarchy items are inlined with `from_` / `to_` prefixes
+
+TOON uses table form for homogeneous arrays. Example:
+
+```text
+diagnostics[2]{code,message,range_ec,range_el,range_sc,range_sl,severity,source}:
+  BSL001,Неиспользуемая переменная,20,10,4,10,2,bsl-language-server
+  BSL042,Пропущена точка с запятой,15,22,0,22,1,bsl-language-server
+uri: "file:///project/Module.bsl"
+```
+
 ## Connection
 
 - **Endpoint**: `http://<host>:<port>/mcp`
@@ -60,6 +85,7 @@ Analyzes a BSL file and returns an array of LSP Diagnostic objects.
 - `source` — analyzer that produced the diagnostic (e.g. `bsl-language-server`)
 - `code` — diagnostic rule identifier
 - `tags`, `relatedInformation` — additional context
+- If TOON is enabled, see "Response format" for aliases.
 
 **Notes**:
 - First request to a file takes longer (opens it in the LSP session).
@@ -82,7 +108,7 @@ Returns the structure of a BSL module: procedures, functions, variables, and reg
 |---|---|---|---|
 | `file_path` | string | yes | Path to .bsl file relative to project_root_path |
 
-**Response**: `DocumentSymbol[]` (with hierarchy and `children`) or `SymbolInformation[]`. Each symbol has `name`, `kind`, `range`, `selectionRange`.
+**Response**: `DocumentSymbol[]` (with hierarchy and `children`) or `SymbolInformation[]`. Each symbol has `name`, `kind`, `range`, `selectionRange`. If TOON is enabled, see "Response format" for aliases.
 
 Works with: common modules, object modules, manager modules, form modules, command modules.
 
@@ -100,7 +126,7 @@ Finds the declaration/definition of a symbol at the given position, including cr
 | `line` | integer | yes | Line number (zero-based, first line = 0) |
 | `character` | integer | yes | Character position in line (zero-based, first char = 0) |
 
-**Response**: `Location`, `Location[]`, `LocationLink[]`, or `null`. Each location has `uri` and `range`. `null` means the symbol was not recognized or the position is imprecise.
+**Response**: `Location`, `Location[]`, `LocationLink[]`, or `null`. Each location has `uri` and `range`. `null` means the symbol was not recognized or the position is imprecise. If TOON is enabled, see "Response format" for aliases.
 
 ### Tool: `references`
 
@@ -116,7 +142,7 @@ Finds all usages (references) of a symbol at the given position across the entir
 | `line` | integer | yes | Line number (zero-based, first line = 0) |
 | `character` | integer | yes | Character position in line (zero-based, first char = 0) |
 
-**Response**: `Location[]` — all files and positions where the symbol is called or mentioned. Includes the declaration itself (`includeDeclaration: true`).
+**Response**: `Location[]` — all files and positions where the symbol is called or mentioned. Includes the declaration itself (`includeDeclaration: true`). If TOON is enabled, see "Response format" for aliases.
 
 **Prefer this over text search (grep)** for reliable dependency analysis in 1C code.
 
@@ -134,7 +160,7 @@ Finds all direct callers of the procedure or function at the given position.
 | `line` | integer | yes | Line number (zero-based, first line = 0) |
 | `character` | integer | yes | Character position in line (zero-based, first char = 0) |
 
-**Response**: `CallHierarchyIncomingCall[]` or `null`. The server first prepares the call hierarchy item and then returns direct callers with `from` and `fromRanges`.
+**Response**: `CallHierarchyIncomingCall[]` or `null`. The server first prepares the call hierarchy item and then returns direct callers with `from` and `fromRanges`. If TOON is enabled, `from` is inlined to `from_*`.
 
 ### Tool: `outgoing_calls`
 
@@ -150,7 +176,7 @@ Finds all direct callees of the procedure or function at the given position.
 | `line` | integer | yes | Line number (zero-based, first line = 0) |
 | `character` | integer | yes | Character position in line (zero-based, first char = 0) |
 
-**Response**: `CallHierarchyOutgoingCall[]` or `null`. The server first prepares the call hierarchy item and then returns direct callees with `to` and `fromRanges`.
+**Response**: `CallHierarchyOutgoingCall[]` or `null`. The server first prepares the call hierarchy item and then returns direct callees with `to` and `fromRanges`. If TOON is enabled, `to` is inlined to `to_*`.
 
 ### Tool: `workspace_symbols`
 
@@ -164,7 +190,7 @@ Searches for symbols (procedures, functions, variables) across the entire projec
 |---|---|---|---|
 | `query` | string | yes | Text query — exact name or distinctive fragment. Example: `ПолучитьФункциональнуюОпцию` |
 
-**Response**: `SymbolInformation[]` with `name`, `kind`, `containerName`, `location`.
+**Response**: `SymbolInformation[]` with `name`, `kind`, `containerName`, `location`. If TOON is enabled, `containerName` becomes `container_name` and `location` becomes `location_*`.
 
 Prefer exact names or distinctive fragments. Avoid empty queries on large projects.
 

@@ -1,0 +1,3 @@
+definition[2]{origin_selection_range_ec,origin_selection_range_el,origin_selection_range_sc,origin_selection_range_sl,target_range_ec,target_range_el,target_range_sc,target_range_sl,target_selection_range_ec,target_selection_range_el,target_selection_range_sc,target_selection_range_sl,target_uri}:
+  4,0,0,0,0,20,0,10,8,10,0,10,"file:///x.bsl"
+  null,null,null,null,0,15,0,5,6,5,0,5,"file:///y.bsl"

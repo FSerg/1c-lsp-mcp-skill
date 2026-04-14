@@ -1,0 +1,27 @@
+[
+  {
+    "from": {
+      "name": "ГлавнаяПроцедура",
+      "kind": 6,
+      "uri": "file:///Module.bsl",
+      "range": {
+        "start": { "line": 0, "character": 0 },
+        "end": { "line": 30, "character": 0 }
+      },
+      "selectionRange": {
+        "start": { "line": 0, "character": 10 },
+        "end": { "line": 0, "character": 26 }
+      }
+    },
+    "fromRanges": [
+      {
+        "start": { "line": 5, "character": 8 },
+        "end": { "line": 5, "character": 20 }
+      },
+      {
+        "start": { "line": 12, "character": 4 },
+        "end": { "line": 12, "character": 16 }
+      }
+    ]
+  }
+]

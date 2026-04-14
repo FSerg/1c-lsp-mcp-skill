@@ -84,6 +84,8 @@ struct SettingsUpdate {
     mcp_navigation_enabled: bool,
     #[serde(default = "default_mcp_navigation_port")]
     mcp_navigation_port: u16,
+    #[serde(default)]
+    use_toon_format: bool,
 }
 
 fn default_mcp_diagnostics_port() -> u16 {
@@ -104,6 +106,7 @@ struct SettingsResponse {
     mcp_diagnostics_port: u16,
     mcp_navigation_enabled: bool,
     mcp_navigation_port: u16,
+    use_toon_format: bool,
     config_path: String,
     db_path: String,
     logs_dir: String,
@@ -187,6 +190,7 @@ async fn update_settings(
         mcp_diagnostics_port: payload.mcp_diagnostics_port,
         mcp_navigation_enabled: payload.mcp_navigation_enabled,
         mcp_navigation_port: payload.mcp_navigation_port,
+        use_toon_format: payload.use_toon_format,
     };
     next.save(&state.paths)
         .await
@@ -516,6 +520,7 @@ fn settings_response(
         mcp_diagnostics_port: config.mcp_diagnostics_port,
         mcp_navigation_enabled: config.mcp_navigation_enabled,
         mcp_navigation_port: config.mcp_navigation_port,
+        use_toon_format: config.use_toon_format,
         config_path: state.paths.config_path.display().to_string(),
         db_path: state.paths.db_path.display().to_string(),
         logs_dir: state.paths.logs_dir.display().to_string(),

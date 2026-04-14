@@ -15,6 +15,24 @@ The CLI auto-discovers the project:
 
 No manual configuration is needed if both are in place.
 
+## Output format
+
+CLI commands that proxy LSP results (`diagnostics`, `symbols`, `definition`, `references`, `incoming-calls`, `outgoing-calls`, `workspace-symbols`) read `use_toon_format` from `lsp-skill` config:
+
+- `false` (default): pretty-printed JSON
+- `true`: compact TOON
+
+TOON aliases the most common LSP fields:
+
+- `range` -> `range_sl`, `range_sc`, `range_el`, `range_ec`
+- `selectionRange` -> `selection_range_sl`, `selection_range_sc`, `selection_range_el`, `selection_range_ec`
+- `location` -> `location_uri`, `location_sl`, `location_sc`, `location_el`, `location_ec`
+- `targetUri` -> `target_uri`
+- `containerName` -> `container_name`
+- `from` / `to` are inlined as `from_*` / `to_*`
+
+`lsp-skill status` is not an LSP response and always stays JSON.
+
 ## Path rules
 
 Each project has two root paths:
@@ -58,7 +76,7 @@ Runs static analysis on a BSL file. Returns LSP diagnostics: syntax errors, warn
 
 **When to use**: before edits (baseline), after edits (verify fix), when explaining errors.
 
-Output fields per diagnostic: `range`, `severity` (1=Error, 2=Warning, 3=Information, 4=Hint), `message`, `source`, `code`, `tags`, `relatedInformation`.
+Output fields per diagnostic: `range`, `severity` (1=Error, 2=Warning, 3=Information, 4=Hint), `message`, `source`, `code`, `tags`, `relatedInformation`. If TOON is enabled, see "Output format" for aliases.
 
 Notes:
 - First request to a file takes longer (opens it in the LSP session).
@@ -75,7 +93,7 @@ Returns the structure of a BSL module: procedures, functions, variables, and reg
 
 **When to use**: to understand an unfamiliar module before editing.
 
-Result: `DocumentSymbol[]` (with hierarchy and `children`) or `SymbolInformation[]`.
+Result: `DocumentSymbol[]` (with hierarchy and `children`) or `SymbolInformation[]`. If TOON is enabled, see "Output format" for aliases.
 
 Works with: common modules, object modules, manager modules, form modules, command modules.
 
@@ -89,7 +107,7 @@ Finds the declaration/definition of a symbol at the given position.
 
 **When to use**: to jump from a procedure/function call to its implementation, including cross-module navigation.
 
-Result: `Location`, `Location[]`, `LocationLink[]`, or `null` (symbol not recognized or position imprecise).
+Result: `Location`, `Location[]`, `LocationLink[]`, or `null` (symbol not recognized or position imprecise). If TOON is enabled, see "Output format" for aliases.
 
 ```bash
 lsp-skill definition "1c-src/Configuration/Documents/Заказ/Forms/Форма/Module.bsl" --line 119 --col 7
@@ -101,7 +119,7 @@ Finds all usages (references) of a symbol at the given position across the entir
 
 **When to use**: before changing or deleting a procedure/function, to assess blast radius.
 
-Result: `Location[]` with all files and positions where the symbol is called or mentioned. Includes the declaration itself (`includeDeclaration: true`).
+Result: `Location[]` with all files and positions where the symbol is called or mentioned. Includes the declaration itself (`includeDeclaration: true`). If TOON is enabled, see "Output format" for aliases.
 
 **Prefer this over grep** for reliable dependency analysis in 1C code.
 
@@ -115,7 +133,7 @@ Searches for symbols (procedures, functions, variables) across the entire projec
 
 **When to use**: when you know the symbol name but not which file it's in.
 
-Result: `SymbolInformation[]` with `name`, `kind`, `containerName`, `location`.
+Result: `SymbolInformation[]` with `name`, `kind`, `containerName`, `location`. If TOON is enabled, `containerName` becomes `container_name` and `location` becomes `location_*`.
 
 Prefer exact names or distinctive fragments. Avoid empty queries on large projects.
 

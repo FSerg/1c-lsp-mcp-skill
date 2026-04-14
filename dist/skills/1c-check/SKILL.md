@@ -15,6 +15,22 @@ The CLI discovers `PROJECT_ID` from a `.env` file in the current directory or a 
 
 If the project is not ready (starting, stopped, error), commands will return an error — handle it when it happens instead of checking upfront. You can run `lsp-skill status` to inspect project state if needed for troubleshooting.
 
+## Output Format
+
+`diagnostics` reads `use_toon_format` from `lsp-skill` config.
+
+- `false` keeps pretty JSON.
+- `true` switches to compact TOON with aliases like `range -> range_sl/range_sc/range_el/range_ec` and table form for homogeneous arrays.
+
+Example:
+
+```text
+diagnostics[2]{code,message,range_ec,range_el,range_sc,range_sl,severity,source}:
+  BSL001,Неиспользуемая переменная,20,10,4,10,2,bsl-language-server
+  BSL042,Пропущена точка с запятой,15,22,0,22,1,bsl-language-server
+uri: "file:///project/Module.bsl"
+```
+
 ## Use Safe Paths
 
 Each project has two root paths:

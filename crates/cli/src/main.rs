@@ -6,8 +6,15 @@ use reqwest::StatusCode;
 
 use lsp_skill_core::{compute_connect_url, AppConfig, AppPaths, RuntimeMetadata};
 
+const VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    " (",
+    env!("LSP_SKILL_GIT_SHA"),
+    ")"
+);
+
 #[derive(Parser)]
-#[command(name = "lsp-skill", about = "CLI клиент для 1C LSP Skill")]
+#[command(name = "lsp-skill", about = "CLI клиент для 1C LSP Skill", version = VERSION)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -82,6 +89,9 @@ async fn run() -> Result<()> {
 
     let project_id = load_project_id()?;
     let connect_url = load_connect_url().await?;
+    let paths = AppPaths::discover()?;
+    let config = AppConfig::load_or_create(&paths).await?;
+    let use_toon = config.use_toon_format;
     let client = reqwest::Client::new();
 
     match cli.command {
@@ -102,7 +112,7 @@ async fn run() -> Result<()> {
                 .send()
                 .await
                 .map_err(|_| connection_error(&connect_url))?;
-            print_json_response(response).await?;
+            print_lsp_response(response, "diagnostics", use_toon).await?;
         }
         Commands::Symbols { file_path } => {
             let response = client
@@ -111,7 +121,7 @@ async fn run() -> Result<()> {
                 .send()
                 .await
                 .map_err(|_| connection_error(&connect_url))?;
-            print_json_response(response).await?;
+            print_lsp_response(response, "symbols", use_toon).await?;
         }
         Commands::References {
             file_path,
@@ -130,7 +140,7 @@ async fn run() -> Result<()> {
                 .send()
                 .await
                 .map_err(|_| connection_error(&connect_url))?;
-            print_json_response(response).await?;
+            print_lsp_response(response, "references", use_toon).await?;
         }
         Commands::Definition {
             file_path,
@@ -149,7 +159,7 @@ async fn run() -> Result<()> {
                 .send()
                 .await
                 .map_err(|_| connection_error(&connect_url))?;
-            print_json_response(response).await?;
+            print_lsp_response(response, "definition", use_toon).await?;
         }
         Commands::WorkspaceSymbols { query } => {
             let response = client
@@ -160,7 +170,7 @@ async fn run() -> Result<()> {
                 .send()
                 .await
                 .map_err(|_| connection_error(&connect_url))?;
-            print_json_response(response).await?;
+            print_lsp_response(response, "workspace_symbols", use_toon).await?;
         }
         Commands::IncomingCalls {
             file_path,
@@ -179,7 +189,7 @@ async fn run() -> Result<()> {
                 .send()
                 .await
                 .map_err(|_| connection_error(&connect_url))?;
-            print_json_response(response).await?;
+            print_lsp_response(response, "incoming_calls", use_toon).await?;
         }
         Commands::OutgoingCalls {
             file_path,
@@ -198,7 +208,7 @@ async fn run() -> Result<()> {
                 .send()
                 .await
                 .map_err(|_| connection_error(&connect_url))?;
-            print_json_response(response).await?;
+            print_lsp_response(response, "outgoing_calls", use_toon).await?;
         }
         Commands::InstallPath => unreachable!(),
     }
@@ -389,6 +399,27 @@ async fn print_json_response(response: reqwest::Response) -> Result<()> {
     if response.status().is_success() {
         let json: serde_json::Value = response.json().await?;
         println!("{}", serde_json::to_string_pretty(&json)?);
+        return Ok(());
+    }
+
+    if response.status() == StatusCode::NOT_FOUND {
+        let value: serde_json::Value = response.json().await.unwrap_or_default();
+        bail!(extract_error_message(value, "Запрос завершился с ошибкой."));
+    }
+
+    let value: serde_json::Value = response.json().await.unwrap_or_default();
+    bail!(extract_error_message(value, "Запрос завершился с ошибкой."));
+}
+
+async fn print_lsp_response(
+    response: reqwest::Response,
+    tool_name: &str,
+    use_toon: bool,
+) -> Result<()> {
+    if response.status().is_success() {
+        let json: serde_json::Value = response.json().await?;
+        let text = lsp_skill_core::toon::format_response(tool_name, &json, use_toon);
+        println!("{text}");
         return Ok(());
     }
 

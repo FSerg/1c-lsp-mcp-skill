@@ -11,9 +11,28 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # ── Verify tag matches Cargo.toml version ─────────────────────────────
+  verify:
+    name: Verify version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare tag with Cargo.toml
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CARGO_VERSION="$(grep -m1 '^version' Cargo.toml | sed -E 's/version = "([^"]+)"/\1/')"
+          echo "Tag:        $GITHUB_REF_NAME ($TAG_VERSION)"
+          echo "Cargo.toml: $CARGO_VERSION"
+          if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match Cargo.toml version $CARGO_VERSION"
+            exit 1
+          fi
+
   # ── Build WASM frontend once (platform-independent) ───────────────────
   frontend:
     name: Build frontend
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -1,0 +1,4 @@
+diagnostics[2]{code,message,range_ec,range_el,range_sc,range_sl,severity,source}:
+  BSL001,Неиспользуемая переменная,20,10,4,10,2,bsl-language-server
+  BSL042,Пропущена точка с запятой,15,22,0,22,1,bsl-language-server
+uri: "file:///project/Module.bsl"

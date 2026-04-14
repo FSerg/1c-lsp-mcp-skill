@@ -1,0 +1,15 @@
+incoming_calls:
+  - from_kind: 6
+    from_name: ГлавнаяПроцедура
+    from_range_ec: 0
+    from_range_el: 30
+    from_range_sc: 0
+    from_range_sl: 0
+    from_ranges[2]{ec,el,sc,sl}:
+      20,5,8,5
+      16,12,4,12
+    from_selection_range_ec: 26
+    from_selection_range_el: 0
+    from_selection_range_sc: 10
+    from_selection_range_sl: 0
+    from_uri: "file:///Module.bsl"
